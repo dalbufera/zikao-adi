@@ -13,6 +13,7 @@ services:
       - ./data:/opt/zikao/data
       - ./voices:/opt/zikao/voices
       - ./frontend:/opt/zikao/frontend
+      - ./certs:/opt/zikao/certs
     env_file:
       - .env
     networks:

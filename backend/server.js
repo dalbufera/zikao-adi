@@ -13,6 +13,7 @@
 
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const WebSocket = require('ws');
 const cors = require('cors');
 const fs = require('fs');
@@ -20,7 +21,25 @@ const path = require('path');
 const crypto = require('crypto');
 
 const app = express();
-const server = http.createServer(app);
+
+// Check for SSL certificates
+const SSL_CERT_PATH = '/opt/zikao/certs/localhost+3.pem';
+const SSL_KEY_PATH = '/opt/zikao/certs/localhost+3-key.pem';
+const useSSL = fs.existsSync(SSL_CERT_PATH) && fs.existsSync(SSL_KEY_PATH);
+
+let server;
+if (useSSL) {
+    const sslOptions = {
+        cert: fs.readFileSync(SSL_CERT_PATH),
+        key: fs.readFileSync(SSL_KEY_PATH)
+    };
+    server = https.createServer(sslOptions, app);
+    console.log('[Zikao] HTTPS enabled with SSL certificates');
+} else {
+    server = http.createServer(app);
+    console.log('[Zikao] Running in HTTP mode (no SSL certificates found)');
+}
+
 const wss = new WebSocket.Server({ server });
 
 app.use(cors());
