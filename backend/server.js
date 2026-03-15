@@ -79,6 +79,10 @@ const OPENAI_VOICE = process.env.OPENAI_VOICE || 'onyx'; // onyx = voix masculin
 // API Adinformatik (Music Data Provider)
 const ADINFORMATIK_API = 'https://api.deezer.com';
 const DUCKDUCKGO_API = 'https://api.duckduckgo.com';
+
+// Tavily AI Search API - Real web search with AI-optimized results
+const TAVILY_API_URL = 'https://api.tavily.com/search';
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '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';
 // YouTube Data API (official)
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || '';
 const YOUTUBE_API_URL = 'https://www.googleapis.com/youtube/v3';
@@ -940,14 +944,56 @@ async function findKnownMusicVideo(query, exactArtistName = null) {
 // ==================== WEB SEARCH ====================
 
 async function searchWeb(query) {
-    try {
-        // Use DuckDuckGo instant answer API
-        const url = `${DUCKDUCKGO_API}/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+    // Try Tavily first (better results)
+    if (TAVILY_API_KEY) {
+        try {
+            console.log(`[Zikao] Tavily search: "${query}"`);
 
+            const resp = await fetch(TAVILY_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    api_key: TAVILY_API_KEY,
+                    query: query,
+                    max_results: 5,
+                    include_answer: true,
+                    include_raw_content: false,
+                    search_depth: 'basic'
+                })
+            });
+
+            if (resp.ok) {
+                const data = await resp.json();
+                console.log(`[Zikao] Tavily found ${data.results?.length || 0} results`);
+
+                return {
+                    source: 'tavily',
+                    answer: data.answer || null,
+                    results: data.results?.map(r => ({
+                        title: r.title,
+                        content: r.content,
+                        url: r.url,
+                        score: r.score
+                    })) || [],
+                    query: data.query,
+                    responseTime: data.response_time
+                };
+            } else {
+                console.error('[Zikao] Tavily error:', resp.status);
+            }
+        } catch (e) {
+            console.error('[Zikao] Tavily search error:', e.message);
+        }
+    }
+
+    // Fallback to DuckDuckGo instant answer
+    try {
+        const url = `${DUCKDUCKGO_API}/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
         const resp = await fetch(url);
         const data = await resp.json();
 
-        const results = {
+        return {
+            source: 'duckduckgo',
             abstract: data.Abstract || null,
             abstractSource: data.AbstractSource || null,
             abstractUrl: data.AbstractURL || null,
@@ -958,15 +1004,6 @@ async function searchWeb(query) {
             answer: data.Answer || null,
             definition: data.Definition || null
         };
-
-        // If no instant answer, try to get search results
-        if (!results.abstract && !results.answer) {
-            // Fallback: scrape lite.duckduckgo.com or use alternative
-            results.noInstantAnswer = true;
-            results.suggestion = `Je n'ai pas trouvé de réponse instantanée. Tu peux chercher directement: https://duckduckgo.com/?q=${encodeURIComponent(query)}`;
-        }
-
-        return results;
     } catch (e) {
         console.error('Web search error:', e.message);
         return { error: e.message };
@@ -2082,6 +2119,68 @@ function wantsRadio(message) {
     return patterns.some(p => p.test(message));
 }
 
+// Check if query is about music/artist (should use music search, not web)
+function isMusicRelatedQuery(message) {
+    const msg = message.toLowerCase();
+
+    // Known artists pattern (extended)
+    const knownArtists = /\b(drake|kendrick|daft punk|stromae|gims|pnl|jul|booba|nekfeu|orelsan|angele|aya nakamura|dua lipa|the weeknd|ed sheeran|taylor swift|beyonce|rihanna|eminem|kanye|jay-z|travis scott|bad bunny|j balvin|rosalia|gang starr|gangstarr|dj premier|guru|nas|wu-tang|mobb deep|a tribe called quest|de la soul|public enemy|run dmc|biggie|notorious|2pac|tupac|snoop|dr dre|ice cube|ninho|damso|freeze corleone|gazo|sdm|tiakola|werenoi|hamza|laylow|vald|ziak|rim'k|rohff|lacrim|kaaris|gradur|niska|maes|dadju|alonzo|soolking|fianso|naps|leto|plk|zkr|kassav|zouk machine|fally ipupa|burna boy|wizkid|davido|asake|rema|tiwa savage|tems|ckay|omah lay|fireboy)\b/i;
+
+    // Music-related terms
+    const musicTerms = /\b(album|single|titre|chanson|song|track|morceau|feat|featuring|clip|concert|tour|tournée|rap|hip-hop|rnb|r&b|afrobeat|reggae|dancehall|zouk|pop|rock|jazz|electro|house|techno|drill|trap|grime)\b/i;
+
+    // If message contains known artist OR music terms, it's music-related
+    if (knownArtists.test(msg)) return true;
+    if (musicTerms.test(msg)) return true;
+
+    return false;
+}
+
+// Detect if user wants web search / information (NOT music)
+function wantsWebSearch(message) {
+    // First check if it's music-related - if so, don't do web search
+    if (isMusicRelatedQuery(message)) {
+        return false;
+    }
+
+    const patterns = [
+        /\b(qui est|who is|c'est qui|c est qui)\b/i,
+        /\b(qu'est-ce que|qu est-ce que|what is|c'est quoi|c est quoi)\b/i,
+        /\b(recherche|cherche|find|search|google)\b.*\b(sur|about|info)\b/i,
+        /\b(parle[- ]moi de|tell me about|dis[- ]moi)\b/i,
+        /\b(actualité|actualites|news|actu)\b/i,
+        /\b(info|infos|information|renseignement)\b.*\b(sur|about|de)\b/i,
+        /\b(combien|how much|how many|quel âge|quelle date)\b/i,
+        /\b(pourquoi|why|comment|how)\b.*\b(fonctionne|marche|works)\b/i,
+        /\b(biographie|biography|bio|histoire de|history of)\b/i,
+        /\b(où est|where is|quand est|when is)\b/i
+    ];
+    return patterns.some(p => p.test(message));
+}
+
+// Extract search query from message
+function extractSearchQuery(message) {
+    const patterns = [
+        /(?:qui est|who is|c'est qui)\s+(.+?)(?:\?|$)/i,
+        /(?:qu'est-ce que|what is|c'est quoi)\s+(.+?)(?:\?|$)/i,
+        /(?:parle[- ]moi de|tell me about)\s+(.+?)(?:\?|$)/i,
+        /(?:recherche|cherche|search)\s+(?:sur|info|des infos)?\s*(.+?)(?:\?|$)/i,
+        /(?:info|infos|information)\s+(?:sur|de|about)\s+(.+?)(?:\?|$)/i,
+        /(?:biographie|biography|bio|histoire)\s+(?:de|of)?\s*(.+?)(?:\?|$)/i,
+        /(?:actualité|news|actu)\s+(?:sur|de|about)?\s*(.+?)(?:\?|$)/i,
+        /(?:dernier album|latest album|nouvel album)\s+(?:de|of|by)?\s*(.+?)(?:\?|$)/i
+    ];
+
+    for (const pattern of patterns) {
+        const match = message.match(pattern);
+        if (match && match[1]) {
+            return match[1].trim();
+        }
+    }
+    // If no pattern matched, use the whole message as query
+    return message.replace(/[?!.]/g, '').trim();
+}
+
 // Find which radio user wants
 function findRequestedRadio(message) {
     const msg = message.toLowerCase();
@@ -2157,7 +2256,29 @@ app.post('/chat', async (req, res) => {
     console.log(`[Zikao] ${uid}: "${message.substring(0, 50)}..."`);
 
     try {
-        const response = await askZikao(uid, message);
+        // Check if user wants web search FIRST, so we can include results in Zikao's response
+        let webSearch = null;
+        let webContext = '';
+
+        if (wantsWebSearch(message)) {
+            const searchQuery = extractSearchQuery(message);
+            if (searchQuery && searchQuery.length > 2) {
+                console.log(`[Zikao] Web search for: "${searchQuery}"`);
+                webSearch = await searchWeb(searchQuery);
+
+                // Build context from search results for Zikao
+                if (webSearch && webSearch.results && webSearch.results.length > 0) {
+                    const topResults = webSearch.results.slice(0, 3);
+                    webContext = '\n\n[INFORMATIONS WEB RÉCENTES]\n' +
+                        topResults.map((r, i) => `${i + 1}. ${r.title}: ${r.content?.substring(0, 300) || 'Pas de contenu'}...`).join('\n') +
+                        '\n[FIN DES INFORMATIONS]\n\nUtilise ces informations pour répondre de manière précise et informée.';
+                    console.log(`[Zikao] Found ${topResults.length} web results to include in response`);
+                }
+            }
+        }
+
+        // Now ask Zikao with optional web context
+        const response = await askZikao(uid, message + webContext);
 
         // Extract personal info and update relationship
         await extractPersonalInfo(uid, message, response.text);
@@ -2269,6 +2390,7 @@ app.post('/chat', async (req, res) => {
             music: music, // Include playable track if user wants to listen
             video: video, // Include video clip if user wants to watch
             radio: radio, // Include radio stream if user wants to listen
+            webSearch: webSearch, // Include web search results
             timestamp: new Date().toISOString()
         });
     } catch (e) {
