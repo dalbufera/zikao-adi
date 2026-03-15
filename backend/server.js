@@ -1002,22 +1002,34 @@ async function generateSong(prompt, style = 'pop', instrumental = false, title =
         while (attempts < 60) {
             await new Promise(r => setTimeout(r, 2000));
 
-            const statusResp = await fetch(`${APIPASS_URL}/jobs/getTaskStatus`, {
-                method: 'POST',
+            const statusResp = await fetch(`${APIPASS_URL}/jobs/recordInfo?taskId=${taskId}`, {
+                method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${APIPASS_KEY}`
-                },
-                body: JSON.stringify({ taskId: taskId })
+                }
             });
 
             const statusData = await statusResp.json();
 
-            if (statusData.data?.status === 'completed' || statusData.data?.status === 'success') {
-                const result = statusData.data?.output || statusData.data;
+            // Log full response for debugging
+            if (attempts % 5 === 0) {
+                console.log(`[Zikao] APIPASS status response:`, JSON.stringify(statusData).substring(0, 500));
+            }
 
-                // Get the audio URL from the result
-                const audioUrl = result.audioUrl || result.audio_url || result.songs?.[0]?.audio_url;
+            const state = statusData.data?.state || statusData.state;
+            if (state === 'success') {
+                // Parse resultJson if it's a string
+                let result = statusData.data?.resultJson || statusData.data;
+                if (typeof result === 'string') {
+                    try { result = JSON.parse(result); } catch(e) {}
+                }
+
+                console.log(`[Zikao] Song result:`, JSON.stringify(result).substring(0, 300));
+
+                // Get the audio URL from the result (various possible locations)
+                const audioUrl = result.audio_url || result.audioUrl ||
+                    result.songs?.[0]?.audio_url || result.data?.[0]?.audio_url ||
+                    result[0]?.audio_url;
 
                 if (audioUrl) {
                     // Download and save the song
@@ -1032,11 +1044,11 @@ async function generateSong(prompt, style = 'pop', instrumental = false, title =
                     return {
                         success: true,
                         id: taskId,
-                        title: result.title || title || prompt.substring(0, 50),
+                        title: result.title || result[0]?.title || title || prompt.substring(0, 50),
                         style: style,
-                        duration: result.duration,
+                        duration: result.duration || result[0]?.duration,
                         url: `/songs/${filename}`,
-                        lyrics: result.lyrics,
+                        lyrics: result.lyrics || result[0]?.lyrics,
                         externalUrl: audioUrl
                     };
                 }
@@ -1050,9 +1062,9 @@ async function generateSong(prompt, style = 'pop', instrumental = false, title =
                 };
             }
 
-            if (statusData.data?.status === 'failed' || statusData.data?.status === 'error') {
-                console.error('[Zikao] Song generation failed:', statusData.data?.error);
-                return { error: 'Song generation failed', details: statusData.data?.error };
+            if (state === 'fail') {
+                console.error('[Zikao] Song generation failed:', statusData.data?.failMsg);
+                return { error: 'Song generation failed', details: statusData.data?.failMsg };
             }
 
             // Still processing
@@ -1108,21 +1120,32 @@ Réponds en JSON strict:
         });
 
         const result = await resp.json();
+        console.log('[Zikao] Song LLM response:', JSON.stringify(result).substring(0, 500));
         const content = result.choices?.[0]?.message?.content;
 
         if (!content) {
-            console.error('[Zikao] No response from LLM for song interpretation');
+            console.error('[Zikao] No response from LLM for song interpretation:', result.error || result);
+            return { error: 'Could not interpret singing request: ' + (result.error?.message || 'LLM error') };
+        }
+
+        // Extract song data using regex (more robust than JSON.parse for LLM output)
+        const lyricsMatch = content.match(/"lyrics"\s*:\s*"([\s\S]*?)(?:"\s*,|\"\s*\})/);
+        const styleMatch = content.match(/"style"\s*:\s*"([^"]+)"/);
+        const titleMatch = content.match(/"title"\s*:\s*"([^"]+)"/);
+        const moodMatch = content.match(/"mood"\s*:\s*"([^"]+)"/);
+
+        if (!lyricsMatch || !styleMatch || !titleMatch) {
+            console.error('[Zikao] Could not extract song data from:', content.substring(0, 300));
             return { error: 'Could not interpret singing request' };
         }
 
-        // Parse JSON response
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            console.error('[Zikao] Could not parse song JSON:', content);
-            return { error: 'Could not interpret singing request' };
-        }
-
-        const songData = JSON.parse(jsonMatch[0]);
+        const songData = {
+            lyrics: lyricsMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+            style: styleMatch[1],
+            title: titleMatch[1],
+            mood: moodMatch ? moodMatch[1] : 'energetic'
+        };
+        console.log(`[Zikao] Song extracted: "${songData.title}" style: ${songData.style}`);
         console.log(`[Zikao] Song interpreted: "${songData.title}" style: ${songData.style}`);
 
         // Generate the song with Suno V5 via APIPASS
