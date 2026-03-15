@@ -186,7 +186,8 @@ function getUserMemory(userId) {
             moods: [],
             conversationHistory: [],
             lastSeen: null,
-            totalInteractions: 0
+            totalInteractions: 0,
+            lastMentionedArtist: null  // Remember last artist mentioned for "envoie" commands
         });
     }
     return userMemory.get(userId);
@@ -1937,15 +1938,120 @@ app.get('/health', (req, res) => {
     });
 });
 
+// ==================== SLANG DICTIONARY (FR + US) ====================
+// Urban slang for music requests - updated 2025/2026
+
+const SLANG_PLAY_MUSIC = {
+    // French slang - demander de jouer de la musique
+    fr: [
+        'balance', 'envoie', 'envoi', 'lâche', 'lache', 'fais péter', 'fais peter',
+        'met', 'mets', 'fais tourner', 'lance', 'crache', 'pousse', 'gère',
+        'calé', 'cale', 'pose', 'drop', 'envoie la sauce', 'balance la sauce',
+        'fais claquer', 'dégaine', 'degaine', 'sort', 'sors', 'kick', 'kicke',
+        'défoule', 'defoule', 'chauffe', 'allume', 'démarre', 'demarre',
+        'régale', 'regale', 'gâte', 'gate', 'fais plaisir', 'enchaîne', 'enchaine',
+        'fais vibrer', 'fais kiffer', 'fais groover', 'bombarde',
+        'envoie du lourd', 'envoie du gros', 'fais péter les watts',
+        'monte le son', 'pousse le volume', 'mets à fond', 'met a fond',
+        'send it', 'go', 'vas-y', 'vazy', 'allez', 'c\'est parti', 'on y va'
+    ],
+    // US slang - play music requests
+    us: [
+        'play', 'drop', 'spin', 'hit me with', 'put on', 'throw on', 'bump',
+        'blast', 'crank', 'pump', 'run', 'fire up', 'queue up', 'load up',
+        'let\'s hear', 'gimme', 'give me', 'hit it', 'let it rip', 'send it',
+        'turn up', 'vibe to', 'bless my ears', 'slap on', 'kick it',
+        'slide', 'run that', 'play that', 'drop that beat', 'let\'s go',
+        'bring it', 'serve it up', 'hook me up', 'set it off'
+    ]
+};
+
+const SLANG_HAVE_MUSIC = {
+    // French - demander si dispo
+    fr: [
+        'as-tu', 'as tu', 't\'as', 'tu as', 'y\'a', 'y a', 'il y a',
+        'c\'est dispo', 'tu connais', 'tu gères', 'tu peux', 'tu sais',
+        'tu kiffes', 'ça te dit', 'ca te dit', 'dans tes bacs', 'en stock',
+        'dans ta playlist', 'dans ton répertoire', 'tu maîtrises'
+    ],
+    // US - asking if available
+    us: [
+        'you got', 'got any', 'do you have', 'can you play', 'know any',
+        'hook me up with', 'bless me with', 'you fw', 'you fuck with',
+        'you vibing', 'can you drop', 'you spinning'
+    ]
+};
+
+const SLANG_APPROVAL = {
+    // French - expressions d'approbation
+    fr: [
+        'c\'est carré', 'c est carre', 'trop dar', 'c\'est dar', 'ça claque',
+        'ca claque', 'c\'est chaud', 'c\'est frais', 'c\'est fresh', 'oklm',
+        'au calme', 'tranquille', 'nickel', 'parfait', 'mortel', 'dingue',
+        'de ouf', 'trop bien', 'c\'est ça', 'validé', 'grave', 'trop lourd',
+        'ça déchire', 'ca dechire', 'ça tue', 'ca tue', 'énorme', 'enorme',
+        'c\'est le feu', 'ça gère', 'ca gere', 'propre', 'sale', 'méchant',
+        'bestial', 'monstrueux', 'dément', 'dement', 'stylé', 'style'
+    ],
+    // US - approval expressions
+    us: [
+        'fire', 'lit', 'slaps', 'bussin', 'goated', 'valid', 'facts',
+        'bet', 'no cap', 'fr fr', 'deadass', 'hits different', 'goes hard',
+        'sick', 'dope', 'tight', 'fresh', 'ill', 'legit', 'straight up',
+        'lowkey fire', 'highkey fire', 'absolute banger', 'certified',
+        'w', 'massive w', 'that\'s a vibe', 'that\'s heat', 'that\'s crazy'
+    ]
+};
+
+const SLANG_GENRES = {
+    // French genre slang
+    fr: {
+        'son de rue': 'rap français',
+        'son de banlieue': 'rap français',
+        'son de tess': 'rap français',
+        'son de tieks': 'rap français',
+        'zik': 'musique',
+        'son': 'musique',
+        'banger': 'hit',
+        'classique': 'classic',
+        'pépite': 'gem',
+        'pepite': 'gem',
+        'tuerie': 'banger'
+    },
+    // US genre slang
+    us: {
+        'heat': 'hot track',
+        'joint': 'track',
+        'jawn': 'track',
+        'cut': 'track',
+        'bop': 'catchy song',
+        'banger': 'hit song',
+        'slapper': 'great song',
+        'anthem': 'popular song'
+    }
+};
+
+// Build regex patterns from slang dictionaries
+function buildSlangPatterns() {
+    const playTerms = [...SLANG_PLAY_MUSIC.fr, ...SLANG_PLAY_MUSIC.us].map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const haveTerms = [...SLANG_HAVE_MUSIC.fr, ...SLANG_HAVE_MUSIC.us].map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    return {
+        play: new RegExp('\\b(' + playTerms.join('|') + ')\\b', 'i'),
+        have: new RegExp('\\b(' + haveTerms.join('|') + ')\\b', 'i')
+    };
+}
+
+const SLANG_PATTERNS = buildSlangPatterns();
+
 // Detect if user wants to listen to music
 function wantsToListen(message) {
     const patterns = [
         /\b(écoute|ecoute|écouter|ecouter)\b/i,
         /\b(joue|jouer|passe|passer)\b/i,
-        /\b(fais.*(écouter|ecouter|jouer))\b/i,
-        /\b(mets|met|balance)\b/i,
-        /\b(listen|play|hear)\b/i,
-        /\b(propose|recommande|suggère|suggere)\b/i
+        /\b(fais.*(écouter|ecouter|jouer|péter|peter|tourner|claquer))\b/i,
+        /\b(propose|recommande|suggère|suggere)\b/i,
+        SLANG_PATTERNS.play,  // All slang play terms
+        SLANG_PATTERNS.have   // All slang "do you have" terms
     ];
     return patterns.some(p => p.test(message));
 }
@@ -1964,7 +2070,7 @@ function wantsVideo(message) {
 function wantsRadio(message) {
     const patterns = [
         /\b(radio|webradio|station|fm)\b/i,
-        /\b(skyrock|mouv|fip|nova|inter|jazz|tsf|tropique|zouk)\b/i,
+        /\b(skyrock|mouv|fip|nova|inter|jazz|tsf|tropique)\b/i,
         /\b(flux|stream|direct|live)\b/i
     ];
     return patterns.some(p => p.test(message));
@@ -1982,7 +2088,7 @@ function findRequestedRadio(message) {
     if (msg.includes('inter') || msg.includes('france inter')) return 'france-inter';
     if (msg.includes('nova')) return 'nova';
     if (msg.includes('tsf') || msg.includes('jazz')) return 'tsf-jazz';
-    if (msg.includes('tropique') || msg.includes('zouk') || msg.includes('antilles')) return 'tropique-fm';
+    if (msg.includes('tropique') || msg.includes('antilles') || msg.includes('radio zouk')) return 'tropique-fm';
 
     // Default to Mouv for urban vibes
     return 'mouv';
@@ -1990,13 +2096,29 @@ function findRequestedRadio(message) {
 
 // Extract artist name from message
 function extractArtistFromMessage(message) {
+    // Build dynamic pattern from slang dictionaries
+    const playSlang = [...SLANG_PLAY_MUSIC.fr, ...SLANG_PLAY_MUSIC.us]
+        .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('|');
+    const haveSlang = [...SLANG_HAVE_MUSIC.fr, ...SLANG_HAVE_MUSIC.us]
+        .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('|');
+
     // Common patterns to extract artist names
     const patterns = [
+        // Standard patterns
         /(?:écouter|ecouter|jouer|passer|play|hear)\s+(?:du|de la|le|la|un|une|des)?\s*(.+)/i,
-        /(?:fais.+écouter|fais.+ecouter)\s+(?:du|de la|le|la)?\s*(.+)/i,
+        /(?:fais.+(?:écouter|ecouter|péter|peter|tourner|claquer))\s+(?:du|de la|le|la)?\s*(.+)/i,
         /(?:mets|met)\s+(?:du|de la|le|la)?\s*(.+)/i,
         /(?:tu m'as parlé de|parlé de|le nouveau|la nouvelle)\s+(.+)/i,
-        /(?:drake|kendrick|daft punk|stromae|gims|pnl|jul|booba|nekfeu|orelsan|angele|aya nakamura|dua lipa|the weeknd|ed sheeran|taylor swift|beyonce|rihanna|eminem|kanye|jay-z|travis scott|bad bunny|j balvin|rosalia)/i
+        /(?:as-?\s*tu|t'as|tu as)\s+(?:du|de la|le|la|des)?\s*(?:groupe|artiste|son|musique)?\s*(.+?)(?:\s+à|\s+a|\s+dans|\?|!|$)/i,
+        /(?:cherche|trouve|lance)\s+(?:du|de la|le|la)?\s*(.+)/i,
+        // Slang patterns - "balance du drake", "envoie la sauce sur kendrick"
+        new RegExp(`(?:${playSlang})\\s+(?:du|de la|le|la|un peu de|des|moi)?\\s*(.+?)(?:\\s+stp|\\s+svp|\\?|!|$)`, 'i'),
+        // "t'as/tu as" with slang - "t'as du son de jul?"
+        new RegExp(`(?:${haveSlang})\\s+(?:du|de la|le|la|des)?\\s*(?:son de|musique de|track de)?\\s*(.+?)(?:\\s+dans|\\s+à|\\?|!|$)`, 'i'),
+        // Known artists direct match (extended list)
+        /(?:drake|kendrick|daft punk|stromae|gims|pnl|jul|booba|nekfeu|orelsan|angele|aya nakamura|dua lipa|the weeknd|ed sheeran|taylor swift|beyonce|rihanna|eminem|kanye|jay-z|travis scott|bad bunny|j balvin|rosalia|gang starr|gangstarr|dj premier|guru|nas|wu-tang|mobb deep|a tribe called quest|de la soul|public enemy|run dmc|biggie|notorious|2pac|tupac|snoop|dr dre|ice cube|ninho|damso|freeze corleone|gazo|sdm|tiakola|werenoi|hamza|laylow|vald|ziak|rim'k|rohff|lacrim|kaaris|gradur|niska|maes|dadju|alonzo|soolking|fianso|naps|leto|plk|zkr|green montana|la fouine|sexion d'assaut|iam|ntm|mc solaar|oxmo puccino|kery james|youssoupha|soprano|bigflo et oli|kids united|kassav|zouk machine|jocelyne beroard|jacob desvarieux|jean-michel rotin|tanya saint val|admiral t|kalash|fally ipupa|werrason|koffi olomide|ferre gola|innoss'b|burna boy|wizkid|davido|asake|rema|tiwa savage|tems|ckay|omah lay|fireboy dml)/i
     ];
 
     for (const pattern of patterns) {
@@ -2004,10 +2126,12 @@ function extractArtistFromMessage(message) {
         if (match) {
             // Clean up the extracted name
             let artist = match[1] || match[0];
-            artist = artist.replace(/[?.!,;]$/g, '').trim();
-            // Remove common words
-            artist = artist.replace(/\b(stp|svp|please|maintenant|now|un peu de|quelque chose de)\b/gi, '').trim();
-            if (artist.length > 1) {
+            artist = artist.replace(/[?.!,;:]$/g, '').trim();
+            // Remove filler words and slang noise
+            artist = artist.replace(/\b(stp|svp|please|maintenant|now|un peu de|quelque chose de|du son de|la zik de|poto|fréro|frere|wesh|yo|bro|man|dude|chef|boss|gars)\b/gi, '').trim();
+            // Remove trailing prepositions
+            artist = artist.replace(/\s+(de|du|des|la|le|les|sur|avec|pour)$/i, '').trim();
+            if (artist.length > 1 && artist.length < 100) {
                 return artist;
             }
         }
@@ -2068,9 +2192,18 @@ app.post('/chat', async (req, res) => {
 
         // Check if user wants to listen - search for specific artist or trending
         let music = null;
+        const mem = getUserMemory(uid);
+
+        // Always try to extract artist from any message to remember it
+        const mentionedArtist = extractArtistFromMessage(message);
+        if (mentionedArtist) {
+            mem.lastMentionedArtist = mentionedArtist;
+            console.log(`[Zikao] Remembered artist: ${mentionedArtist}`);
+        }
+
         if (wantsToListen(message) && !video && !radio) {
-            // First try to extract artist from message
-            const requestedArtist = extractArtistFromMessage(message);
+            // First try to extract artist from message, or use last mentioned
+            const requestedArtist = mentionedArtist || mem.lastMentionedArtist;
 
             if (requestedArtist) {
                 // User asked for specific artist - search by artist first
