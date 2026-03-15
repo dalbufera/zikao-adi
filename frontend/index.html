@@ -1,0 +1,3153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZIKAO - Digital Human DJ</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #14141f;
+            --accent: #7c3aed;
+            --accent-glow: #a855f7;
+            --text: #e2e8f0;
+            --text-dim: #64748b;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 100%;
+        }
+
+        /* Header */
+        .header {
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-dim);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            display: flex;
+            padding: 2rem;
+            gap: 2rem;
+            overflow: hidden;
+        }
+
+        /* Avatar Section */
+        .avatar-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .avatar-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+        }
+
+        .avatar-glow {
+            position: absolute;
+            inset: -20px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            opacity: 0.3;
+            filter: blur(30px);
+            transition: opacity 0.3s;
+        }
+
+        .avatar-glow.speaking {
+            opacity: 0.6;
+            animation: glowPulse 0.5s infinite alternate;
+        }
+
+        @keyframes glowPulse {
+            from { transform: scale(1); opacity: 0.4; }
+            to { transform: scale(1.1); opacity: 0.7; }
+        }
+
+        .avatar {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-card);
+            border-radius: 50%;
+            border: 3px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .avatar-face {
+            font-size: 120px;
+            transition: all 0.3s ease;
+        }
+
+        .avatar-state {
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--accent-glow);
+            border: 1px solid var(--accent);
+        }
+
+        .voice-volume {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-card);
+            border-radius: 20px;
+            max-width: 200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .voice-volume .volume-icon {
+            font-size: 1rem;
+        }
+
+        .voice-volume input[type="range"] {
+            -webkit-appearance: none;
+            width: 100px;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--value, 100%), var(--text-dim) var(--value, 100%), var(--text-dim) 100%);
+            cursor: pointer;
+        }
+
+        .voice-volume input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .voice-volume input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: none;
+        }
+
+        .voice-volume .volume-value {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            min-width: 35px;
+        }
+
+        .mood-indicator {
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .mood-label {
+            font-size: 0.875rem;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+        }
+
+        .mood-text {
+            font-size: 1.25rem;
+            color: var(--accent-glow);
+        }
+
+        .activity-text {
+            font-size: 0.875rem;
+            color: var(--text-dim);
+            margin-top: 0.5rem;
+            max-width: 250px;
+        }
+
+        /* Chat Section */
+        .chat-section {
+            flex: 1.5;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-card);
+            border-radius: 20px;
+            border: 1px solid rgba(124, 58, 237, 0.2);
+            overflow: hidden;
+        }
+
+        .messages {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 1rem 1.25rem;
+            border-radius: 18px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            background: var(--accent);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.zikao {
+            background: rgba(124, 58, 237, 0.2);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message .emotion {
+            font-size: 0.75rem;
+            color: var(--accent-glow);
+            margin-bottom: 0.25rem;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 1rem;
+            align-self: flex-start;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); opacity: 0.5; }
+            50% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* Input Section */
+        .input-section {
+            padding: 1.5rem;
+            border-top: 1px solid rgba(124, 58, 237, 0.2);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .text-input {
+            flex: 1;
+            background: var(--bg-dark);
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .text-input:focus {
+            border-color: var(--accent);
+        }
+
+        .text-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .btn-mic {
+            background: var(--accent);
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        .btn-mic:hover {
+            background: var(--accent-glow);
+            transform: scale(1.05);
+        }
+
+        .btn-mic.recording {
+            background: #ef4444;
+            animation: recordPulse 1s infinite;
+        }
+
+        @keyframes recordPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+        }
+
+        .btn-send {
+            background: var(--accent);
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        .btn-send:hover {
+            background: var(--accent-glow);
+            transform: scale(1.05);
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem 1.5rem;
+            border-bottom: 1px solid rgba(124, 58, 237, 0.1);
+        }
+
+        .tool-btn {
+            padding: 0.5rem;
+            border-radius: 8px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* Music Player */
+        .music-player {
+            background: rgba(124, 58, 237, 0.15);
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 0.5rem 1.5rem;
+            display: none;
+        }
+
+        .music-player.active {
+            display: block;
+        }
+
+        .music-player .track-info {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .music-player .cover {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .music-player .details {
+            flex: 1;
+        }
+
+        .music-player .title {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .music-player .artist {
+            font-size: 0.875rem;
+            color: var(--text-dim);
+        }
+
+        .music-player .controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .music-player .play-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Search Results */
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 0 1.5rem;
+        }
+
+        .search-result {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-result:hover {
+            background: rgba(124, 58, 237, 0.2);
+        }
+
+        .search-result img {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+        }
+
+        .search-result .info {
+            flex: 1;
+        }
+
+        .search-result .track-title {
+            font-size: 0.875rem;
+            color: var(--text);
+        }
+
+        .search-result .track-artist {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        /* Audio visualizer */
+        .audio-visualizer {
+            display: flex;
+            gap: 3px;
+            height: 30px;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+
+        .audio-bar {
+            width: 4px;
+            background: var(--accent-glow);
+            border-radius: 2px;
+            transition: height 0.1s;
+        }
+
+        .audio-visualizer.active .audio-bar {
+            animation: audioWave 0.5s infinite;
+        }
+
+        .audio-bar:nth-child(1) { animation-delay: 0s; }
+        .audio-bar:nth-child(2) { animation-delay: 0.1s; }
+        .audio-bar:nth-child(3) { animation-delay: 0.2s; }
+        .audio-bar:nth-child(4) { animation-delay: 0.1s; }
+        .audio-bar:nth-child(5) { animation-delay: 0s; }
+
+        @keyframes audioWave {
+            0%, 100% { height: 8px; }
+            50% { height: 25px; }
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--bg-card);
+            border: 1px solid var(--accent);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 1.5rem;
+        }
+
+        /* Stories */
+        .story-card {
+            background: rgba(124, 58, 237, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .story-content {
+            margin-bottom: 0.75rem;
+        }
+
+        .story-footer {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: var(--text-dim);
+        }
+
+        .story-action {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .story-action:hover {
+            color: var(--accent);
+        }
+
+        /* Blind Test */
+        .blind-test-container {
+            text-align: center;
+        }
+
+        .blind-test-score {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-glow);
+            margin-bottom: 1rem;
+        }
+
+        .blind-test-input {
+            width: 100%;
+            padding: 1rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--accent);
+            border-radius: 12px;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        .blind-test-btn {
+            width: 100%;
+            padding: 1rem;
+            background: var(--accent);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        .blind-test-btn:hover {
+            background: var(--accent-glow);
+        }
+
+        /* Recommendations */
+        .rec-card {
+            display: flex;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: rgba(124, 58, 237, 0.1);
+            border-radius: 12px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+        }
+
+        .rec-card:hover {
+            background: rgba(124, 58, 237, 0.2);
+        }
+
+        .rec-card img {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+        }
+
+        .rec-info {
+            flex: 1;
+        }
+
+        .rec-reason {
+            font-size: 0.75rem;
+            color: var(--accent-glow);
+        }
+
+        /* Radio Player */
+        .radio-player {
+            position: relative;
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(236, 72, 153, 0.2));
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 0.5rem 1.5rem;
+            display: none;
+        }
+
+        .radio-player.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .radio-player .radio-info {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .radio-player .radio-logo {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            object-fit: contain;
+            background: white;
+            padding: 5px;
+        }
+
+        .radio-player .radio-details {
+            flex: 1;
+        }
+
+        .radio-player .radio-name {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .radio-player .radio-genre {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .radio-player .radio-live {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: #ef4444;
+        }
+
+        .radio-player .radio-live::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+
+        .radio-player .radio-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .radio-player .radio-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .radio-player .radio-btn:hover {
+            background: var(--accent-glow);
+        }
+
+        .radio-player .shazam-btn {
+            background: linear-gradient(135deg, #1DB954, #1ed760);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .radio-player .shazam-btn:hover {
+            background: linear-gradient(135deg, #1ed760, #1DB954);
+        }
+
+        .radio-player .shazam-btn.listening {
+            animation: shazamPulse 1.5s infinite;
+        }
+
+        .radio-player .shazam-btn.listening::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5);
+            animation: shazamRing 1.5s infinite;
+        }
+
+        @keyframes shazamPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes shazamRing {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+
+        .radio-recognized {
+            background: linear-gradient(135deg, rgba(29, 185, 84, 0.2), rgba(30, 215, 96, 0.1));
+            border: 1px solid #1DB954;
+            border-radius: 10px;
+            padding: 0.6rem 0.75rem;
+            margin-bottom: 0.75rem;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        .radio-recognized.show {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .radio-recognized img {
+            width: 50px;
+            height: 50px;
+            border-radius: 6px;
+        }
+
+        .radio-recognized .rec-info {
+            flex: 1;
+        }
+
+        .radio-recognized .rec-title {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .radio-recognized .rec-artist {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        .radio-recognized .rec-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .radio-recognized .rec-more {
+            background: var(--accent);
+            border: none;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        .radio-recognized .rec-more:hover {
+            background: var(--accent-glow);
+        }
+
+        /* Artist Profile PIP Window */
+        .artist-pip {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            width: 320px;
+            max-height: 450px;
+            background: var(--bg-card);
+            border: 1px solid var(--accent);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            z-index: 1000;
+            overflow: hidden;
+            display: none;
+            animation: pipSlideIn 0.3s ease;
+        }
+
+        .artist-pip.show {
+            display: block;
+        }
+
+        @keyframes pipSlideIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .artist-pip-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+            cursor: move;
+        }
+
+        .artist-pip-header img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+        }
+
+        .artist-pip-header-info {
+            flex: 1;
+            color: white;
+        }
+
+        .artist-pip-header-info h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .artist-pip-header-info span {
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+
+        .artist-pip-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .artist-pip-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .artist-pip-content {
+            padding: 0.75rem;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        .artist-pip-section {
+            margin-bottom: 1rem;
+        }
+
+        .artist-pip-section h4 {
+            margin: 0 0 0.5rem 0;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .pip-tracks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .pip-track {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .pip-track:hover {
+            background: var(--surface-hover);
+        }
+
+        .pip-track img {
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+
+        .pip-track span {
+            flex: 1;
+            font-size: 0.85rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pip-albums-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+
+        .pip-album {
+            text-align: center;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .pip-album:hover {
+            background: var(--surface-hover);
+        }
+
+        .pip-album img {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        .pip-album span {
+            display: block;
+            font-size: 0.65rem;
+            margin-top: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .artist-pip-footer {
+            padding: 0.5rem 0.75rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .artist-pip-footer a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.8rem;
+        }
+
+        /* Keep modal for fallback */
+        .artist-profile {
+            max-width: 500px;
+        }
+
+        .artist-header {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .artist-header img {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .artist-header-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .artist-header-info h2 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+        }
+
+        .artist-stats {
+            display: flex;
+            gap: 1rem;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .artist-stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .artist-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .artist-section h3 {
+            margin: 0 0 0.75rem 0;
+            font-size: 1rem;
+            color: var(--text-dim);
+        }
+
+        .top-tracks {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .top-track {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            background: var(--bg);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .top-track:hover {
+            background: var(--surface-hover);
+        }
+
+        .top-track img {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+        }
+
+        .top-track-info {
+            flex: 1;
+        }
+
+        .top-track-title {
+            font-weight: 500;
+        }
+
+        .top-track-album {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .albums-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+
+        .album-item {
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .album-item img {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-bottom: 0.5rem;
+        }
+
+        .album-item-title {
+            font-size: 0.8rem;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .album-item-date {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+        }
+
+        /* Radio Modal */
+        .radio-list {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .radio-item {
+            display: flex;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: rgba(124, 58, 237, 0.1);
+            border-radius: 12px;
+            cursor: pointer;
+            align-items: center;
+        }
+
+        .radio-item:hover {
+            background: rgba(124, 58, 237, 0.2);
+        }
+
+        .radio-item img {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            object-fit: contain;
+            background: white;
+            padding: 3px;
+        }
+
+        .radio-item .radio-item-info {
+            flex: 1;
+        }
+
+        .radio-item .radio-item-name {
+            font-weight: 600;
+        }
+
+        .radio-item .radio-item-genre {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        /* Video Player - Embedded & PIP */
+        .video-player {
+            background: var(--bg-dark);
+            border-radius: 12px;
+            margin: 0.5rem 1.5rem;
+            display: none;
+            overflow: hidden;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+        }
+
+        .video-player.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* PIP Mode - Floating video */
+        .video-player.pip-mode {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            width: 320px;
+            margin: 0;
+            z-index: 1000;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            resize: both;
+            min-width: 280px;
+            max-width: 500px;
+        }
+
+        .video-player.pip-mode .video-header {
+            cursor: move;
+        }
+
+        .video-player .video-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: rgba(124, 58, 237, 0.3);
+            gap: 0.5rem;
+        }
+
+        .video-player .video-title {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 0.85rem;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .video-player .video-controls {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .video-player .video-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .video-player .video-btn:hover {
+            color: var(--text);
+            background: rgba(255,255,255,0.1);
+        }
+
+        .video-player .video-btn.active {
+            color: var(--accent-glow);
+        }
+
+        .video-player iframe {
+            width: 100%;
+            aspect-ratio: 16/9;
+            border: none;
+            display: block;
+        }
+
+        .video-player .video-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: rgba(0,0,0,0.3);
+            font-size: 0.75rem;
+        }
+
+        .video-player .video-link {
+            color: var(--accent-glow);
+            text-decoration: none;
+        }
+
+        .video-player .video-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Video message in chat */
+        .message.video-message {
+            max-width: 90%;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .message.video-message iframe {
+            width: 100%;
+            aspect-ratio: 16/9;
+            border: none;
+            border-radius: 18px 18px 0 0;
+        }
+
+        .message.video-message .video-info {
+            padding: 0.75rem 1rem;
+            background: rgba(124, 58, 237, 0.2);
+            border-radius: 0 0 18px 18px;
+        }
+
+        .message.video-message .video-info-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .message.video-message .video-info-artist {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        /* Singing indicator */
+        .singing-indicator {
+            display: none;
+            background: linear-gradient(135deg, var(--accent), #ec4899);
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 0.5rem 1.5rem;
+            text-align: center;
+        }
+
+        .singing-indicator.active {
+            display: block;
+            animation: rainbow 2s infinite;
+        }
+
+        @keyframes rainbow {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        /* Zikao listening indicator (music recognition) */
+        .zikao-listening {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 10, 15, 0.95);
+            border: 2px solid var(--accent);
+            border-radius: 50%;
+            width: 200px;
+            height: 200px;
+            z-index: 1001;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .zikao-listening.active {
+            display: flex;
+            animation: shazamPulse 1.5s infinite;
+        }
+
+        @keyframes shazamPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.7);
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                box-shadow: 0 0 0 30px rgba(124, 58, 237, 0);
+                transform: translate(-50%, -50%) scale(1.05);
+            }
+        }
+
+        .zikao-listening .icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .zikao-listening .text {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .zikao-listening .cancel-btn {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--text-dim);
+            border-radius: 20px;
+            color: var(--text-dim);
+            cursor: pointer;
+        }
+
+        .zikao-listening .cancel-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Recognition result card */
+        .recognition-result {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(236, 72, 153, 0.2));
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 0.5rem 1.5rem;
+            display: none;
+        }
+
+        .recognition-result.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .recognition-result .result-header {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .recognition-result .result-cover {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .recognition-result .result-info {
+            flex: 1;
+        }
+
+        .recognition-result .result-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .recognition-result .result-artist {
+            color: var(--accent-glow);
+        }
+
+        .recognition-result .result-album {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        .recognition-result .result-links {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .recognition-result .link-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            border: 1px solid var(--accent);
+            background: transparent;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .recognition-result .link-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main {
+                flex-direction: column;
+                padding: 1rem;
+            }
+
+            .avatar-container {
+                width: 200px;
+                height: 200px;
+            }
+
+            .avatar-face {
+                font-size: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">ZIKAO</div>
+            <div class="status">
+                <div class="status-dot"></div>
+                <span id="statusText">En ligne</span>
+            </div>
+        </header>
+
+        <main class="main">
+            <section class="avatar-section">
+                <div class="avatar-container">
+                    <div class="avatar-glow" id="avatarGlow"></div>
+                    <div class="avatar">
+                        <div class="avatar-face" id="avatarFace">😎</div>
+                    </div>
+                    <div class="avatar-state" id="avatarState">chill</div>
+                </div>
+
+                <div class="audio-visualizer" id="audioVisualizer">
+                    <div class="audio-bar" style="height: 8px;"></div>
+                    <div class="audio-bar" style="height: 12px;"></div>
+                    <div class="audio-bar" style="height: 20px;"></div>
+                    <div class="audio-bar" style="height: 12px;"></div>
+                    <div class="audio-bar" style="height: 8px;"></div>
+                </div>
+
+                <div class="voice-volume">
+                    <span class="volume-icon">🔊</span>
+                    <input type="range" id="voiceVolumeSlider" min="0" max="100" value="100" title="Volume voix Zikao">
+                    <span class="volume-value" id="volumeValue">100%</span>
+                </div>
+
+                <div class="mood-indicator">
+                    <div class="mood-label">Mood actuel</div>
+                    <div class="mood-text" id="moodText">Groovy</div>
+                    <div class="activity-text" id="activityText">Session chill beats du soir</div>
+                </div>
+            </section>
+
+            <section class="chat-section">
+                <div class="toolbar">
+                    <button class="tool-btn" id="musicSearchBtn" title="Chercher musique">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="5.5" cy="17.5" r="2.5"/>
+                            <circle cx="17.5" cy="15.5" r="2.5"/>
+                            <path d="M8 17V5l12-2v12"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="singBtn" title="Demander de chanter">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <circle cx="12" cy="21" r="1"/>
+                            <path d="M9 21h6"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="blindTestBtn" title="Blind Test">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="storiesBtn" title="Stories de Zikao">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="recsBtn" title="Recommandations">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="radioBtn" title="Webradios">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="2"/>
+                            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="shazamBtn" title="Reconnaitre une chanson">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="videoSearchBtn" title="Chercher un clip">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="23 7 16 12 23 17 23 7"/>
+                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="webSearchBtn" title="Recherche web">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="2" y1="12" x2="22" y2="12"/>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="radio-player" id="radioPlayer">
+                    <div class="radio-recognized" id="radioRecognized">
+                        <img id="recCover" src="" alt="">
+                        <div class="rec-info">
+                            <div class="rec-title" id="recTitle">-</div>
+                            <div class="rec-artist" id="recArtist">-</div>
+                        </div>
+                        <button class="rec-more" id="recMoreBtn" onclick="showArtistProfile()">Voir artiste</button>
+                        <button class="rec-close" onclick="hideRecognized()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="radio-info">
+                        <img class="radio-logo" id="radioLogo" src="" alt="">
+                        <div class="radio-details">
+                            <div class="radio-name" id="radioName">-</div>
+                            <div class="radio-genre" id="radioGenre">-</div>
+                            <div class="radio-live">EN DIRECT</div>
+                        </div>
+                        <div class="radio-controls">
+                            <button class="radio-btn shazam-btn" id="radioShazamBtn" onclick="shazamRadio()" title="Identifier le morceau">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                                </svg>
+                            </button>
+                            <button class="radio-btn" id="radioPlayBtn" onclick="toggleRadio()">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                            </button>
+                            <button class="radio-btn" onclick="closeRadio()" style="background: transparent; border: 1px solid var(--text-dim);">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <audio id="radioAudio" preload="none"></audio>
+                </div>
+
+                <div class="music-player" id="musicPlayer">
+                    <div class="track-info">
+                        <img class="cover" id="playerCover" src="" alt="">
+                        <div class="details">
+                            <div class="title" id="playerTitle">-</div>
+                            <div class="artist" id="playerArtist">-</div>
+                        </div>
+                        <div class="controls">
+                            <button class="play-btn" id="playBtn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <audio id="audioPlayer"></audio>
+                </div>
+
+                <div class="video-player" id="videoPlayer">
+                    <div class="video-header">
+                        <span class="video-title" id="videoTitle">-</span>
+                        <div class="video-controls">
+                            <button class="video-btn" id="pipBtn" title="Mode PIP" onclick="togglePipMode()">⬜</button>
+                            <button class="video-btn" onclick="closeVideo()" title="Fermer">&times;</button>
+                        </div>
+                    </div>
+                    <iframe id="videoFrame" src="" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+                    <div class="video-footer">
+                        <span id="videoArtist">-</span>
+                        <a class="video-link" id="videoLink" href="" target="_blank">↗ YouTube</a>
+                    </div>
+                </div>
+
+                <div class="search-results" id="searchResults"></div>
+
+                <div class="messages" id="messages">
+                    <!-- Messages will be added here -->
+                </div>
+
+                <div class="input-section">
+                    <input type="text" class="text-input" id="textInput" placeholder="Parle-moi de musique, de tout..." />
+                    <button class="btn btn-mic" id="micBtn" title="Parler">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                    </button>
+                    <button class="btn btn-send" id="sendBtn" title="Envoyer">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- Singing Indicator -->
+    <div class="singing-indicator" id="singingIndicator">
+        Zikao compose une chanson pour toi...
+    </div>
+
+    <!-- Zikao Music Recognition (like Shazam) -->
+    <div class="zikao-listening" id="zikaoListening">
+        <div class="icon">🎵</div>
+        <div class="text">Zikao écoute...</div>
+        <button class="cancel-btn" onclick="cancelRecognition()">Annuler</button>
+    </div>
+
+    <!-- Recognition Result -->
+    <div class="recognition-result" id="recognitionResult">
+        <div class="result-header">
+            <img class="result-cover" id="resultCover" src="" alt="">
+            <div class="result-info">
+                <div class="result-title" id="resultTitle">-</div>
+                <div class="result-artist" id="resultArtist">-</div>
+                <div class="result-album" id="resultAlbum">-</div>
+            </div>
+        </div>
+        <div class="result-links" id="resultLinks"></div>
+    </div>
+
+    <!-- Stories Modal -->
+    <div class="modal" id="storiesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Stories de Zikao</h3>
+                <button class="modal-close" onclick="closeModal('storiesModal')">&times;</button>
+            </div>
+            <div id="storiesList"></div>
+        </div>
+    </div>
+
+    <!-- Blind Test Modal -->
+    <div class="modal" id="blindTestModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Blind Test</h3>
+                <button class="modal-close" onclick="closeModal('blindTestModal')">&times;</button>
+            </div>
+            <div class="blind-test-container">
+                <div class="blind-test-score">Score: <span id="btScore">0</span></div>
+                <div id="btStatus">Pret a jouer?</div>
+                <audio id="btAudio"></audio>
+                <input type="text" class="blind-test-input" id="btTitle" placeholder="Titre de la chanson...">
+                <input type="text" class="blind-test-input" id="btArtist" placeholder="Artiste...">
+                <button class="blind-test-btn" id="btSubmit" onclick="submitBlindTest()">Valider</button>
+                <button class="blind-test-btn" id="btStart" onclick="startBlindTest()" style="background: var(--success);">Nouvelle partie</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Radio Modal -->
+    <div class="modal" id="radioModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">📻 Webradios</h3>
+                <button class="modal-close" onclick="closeModal('radioModal')">&times;</button>
+            </div>
+            <div class="radio-list" id="radioList"></div>
+        </div>
+    </div>
+
+    <!-- Recommendations Modal -->
+    <div class="modal" id="recsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Pour toi</h3>
+                <button class="modal-close" onclick="closeModal('recsModal')">&times;</button>
+            </div>
+            <div id="recsList"></div>
+        </div>
+    </div>
+
+    <!-- Artist Profile Modal -->
+    <div class="modal" id="artistModal">
+        <div class="modal-content artist-profile">
+            <div class="modal-header">
+                <h3 class="modal-title">🎤 Artiste</h3>
+                <button class="modal-close" onclick="closeModal('artistModal')">&times;</button>
+            </div>
+            <div id="artistProfileContent"></div>
+        </div>
+    </div>
+
+    <!-- Artist PIP Window -->
+    <div class="artist-pip" id="artistPip">
+        <div class="artist-pip-header">
+            <img id="pipArtistPhoto" src="" alt="">
+            <div class="artist-pip-header-info">
+                <h3 id="pipArtistName">-</h3>
+                <span id="pipArtistStats">-</span>
+            </div>
+            <button class="artist-pip-close" onclick="closeArtistPip()">&times;</button>
+        </div>
+        <div class="artist-pip-content">
+            <div class="artist-pip-section" id="pipTopTracks">
+                <h4>🔥 Top titres</h4>
+                <div class="pip-tracks-list"></div>
+            </div>
+            <div class="artist-pip-section" id="pipAlbums">
+                <h4>💿 Albums</h4>
+                <div class="pip-albums-grid"></div>
+            </div>
+        </div>
+        <div class="artist-pip-footer">
+            <a id="pipArtistLink" href="#" target="_blank">Voir sur Adinformatik →</a>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:3100'
+            : `${window.location.protocol}//${window.location.hostname}:3100`;
+
+        // State
+        let userId = localStorage.getItem('zikao_user_id') || generateUserId();
+        let isRecording = false;
+        let currentLang = 'fr';
+        let recognition = null;
+        let currentAudio = null;
+
+        // Face expressions mapping
+        const faceExpressions = {
+            neutral: '😐',
+            happy: '😊',
+            excited: '😄',
+            thinking: '🤔',
+            surprised: '😮',
+            curious: '🧐',
+            empathetic: '😌',
+            passionate: '🔥',
+            chill: '😎',
+            nostalgic: '🥹',
+            proud: '😏',
+            playful: '😜',
+            focused: '🎧',
+            groovy: '🎶'
+        };
+
+        // Generate user ID
+        function generateUserId() {
+            const id = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('zikao_user_id', id);
+            return id;
+        }
+
+        // DOM Elements
+        const messagesEl = document.getElementById('messages');
+        const textInput = document.getElementById('textInput');
+        const micBtn = document.getElementById('micBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const avatarFace = document.getElementById('avatarFace');
+        const avatarGlow = document.getElementById('avatarGlow');
+        const avatarState = document.getElementById('avatarState');
+        const moodText = document.getElementById('moodText');
+        const activityText = document.getElementById('activityText');
+        const audioVisualizer = document.getElementById('audioVisualizer');
+        const toast = document.getElementById('toast');
+
+        // Initialize speech recognition
+        function initSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showToast('Reconnaissance vocale non supportée par ce navigateur');
+                micBtn.style.display = 'none';
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                isRecording = true;
+                micBtn.classList.add('recording');
+                showToast('Parle, je t\'ecoute...');
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('');
+                textInput.value = transcript;
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                micBtn.classList.remove('recording');
+                if (textInput.value.trim()) {
+                    sendMessage(textInput.value);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                isRecording = false;
+                micBtn.classList.remove('recording');
+                showToast('Erreur de reconnaissance vocale');
+            };
+        }
+
+        // Update language
+        function updateLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            if (recognition) {
+                const langMap = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-BR' };
+                recognition.lang = langMap[lang] || 'fr-FR';
+            }
+            const placeholders = {
+                fr: 'Parle-moi de musique, de tout...',
+                en: 'Talk to me about music, anything...',
+                es: 'Hablame de musica, de todo...',
+                pt: 'Fale comigo sobre musica, qualquer coisa...'
+            };
+            textInput.placeholder = placeholders[lang] || placeholders.fr;
+        }
+
+        // Toggle recording
+        function toggleRecording() {
+            if (!recognition) {
+                initSpeechRecognition();
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                const langMap = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-BR' };
+                recognition.lang = langMap[currentLang] || 'fr-FR';
+                recognition.start();
+            }
+        }
+
+        // Add message to chat
+        function addMessage(text, isUser, emotion = null) {
+            const msgEl = document.createElement('div');
+            msgEl.className = `message ${isUser ? 'user' : 'zikao'}`;
+
+            if (emotion && !isUser) {
+                const emotionEl = document.createElement('div');
+                emotionEl.className = 'emotion';
+                emotionEl.textContent = emotion;
+                msgEl.appendChild(emotionEl);
+            }
+
+            const textEl = document.createElement('div');
+            textEl.textContent = text;
+            msgEl.appendChild(textEl);
+
+            messagesEl.appendChild(msgEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        // Show typing indicator
+        function showTyping(show) {
+            const existing = document.querySelector('.typing-indicator');
+            if (show && !existing) {
+                const typingEl = document.createElement('div');
+                typingEl.className = 'typing-indicator';
+                typingEl.innerHTML = '<span></span><span></span><span></span>';
+                messagesEl.appendChild(typingEl);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            } else if (!show && existing) {
+                existing.remove();
+            }
+        }
+
+        // Update avatar
+        function updateAvatar(emotion, gesture) {
+            const face = faceExpressions[emotion] || faceExpressions.neutral;
+            avatarFace.textContent = face;
+            avatarState.textContent = emotion;
+        }
+
+        // Voice volume (0.0 - 1.0), default to max
+        let voiceVolume = parseFloat(localStorage.getItem('zikaoVoiceVolume') || '1.0');
+
+        // Volume slider setup
+        const voiceVolumeSlider = document.getElementById('voiceVolumeSlider');
+        const volumeValueDisplay = document.getElementById('volumeValue');
+
+        // Initialize slider with saved value
+        voiceVolumeSlider.value = voiceVolume * 100;
+        volumeValueDisplay.textContent = Math.round(voiceVolume * 100) + '%';
+        voiceVolumeSlider.style.setProperty('--value', (voiceVolume * 100) + '%');
+
+        voiceVolumeSlider.addEventListener('input', (e) => {
+            voiceVolume = e.target.value / 100;
+            volumeValueDisplay.textContent = e.target.value + '%';
+            e.target.style.setProperty('--value', e.target.value + '%');
+            localStorage.setItem('zikaoVoiceVolume', voiceVolume.toString());
+
+            // Update current audio if playing
+            if (currentAudio) {
+                currentAudio.volume = voiceVolume;
+            }
+        });
+
+        // Play audio response
+        async function playAudio(audioUrl) {
+            if (currentAudio) {
+                currentAudio.pause();
+            }
+
+            avatarGlow.classList.add('speaking');
+            audioVisualizer.classList.add('active');
+
+            currentAudio = new Audio(API_URL + audioUrl);
+            currentAudio.volume = voiceVolume;
+            currentAudio.onended = () => {
+                avatarGlow.classList.remove('speaking');
+                audioVisualizer.classList.remove('active');
+            };
+            currentAudio.onerror = () => {
+                avatarGlow.classList.remove('speaking');
+                audioVisualizer.classList.remove('active');
+            };
+
+            try {
+                await currentAudio.play();
+            } catch (e) {
+                console.error('Audio play error:', e);
+                avatarGlow.classList.remove('speaking');
+                audioVisualizer.classList.remove('active');
+            }
+        }
+
+        // Send message
+        async function sendMessage(text) {
+            if (!text.trim()) return;
+
+            addMessage(text, true);
+            textInput.value = '';
+            showTyping(true);
+
+            try {
+                const response = await fetch(`${API_URL}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: userId,
+                        message: text,
+                        withVoice: true
+                    })
+                });
+
+                const data = await response.json();
+                showTyping(false);
+
+                if (data.error) {
+                    addMessage('Hmm, j\'ai eu un bug... Reessaie?', false, 'thinking');
+                    return;
+                }
+
+                // Update avatar
+                const emotionName = data.emotion?.expression || 'neutral';
+                updateAvatar(emotionName, data.gesture);
+
+                // Add message
+                addMessage(data.text, false, emotionName);
+
+                // Play voice if available
+                if (data.voice?.url) {
+                    playAudio(data.voice.url);
+                }
+
+            } catch (error) {
+                console.error('API error:', error);
+                showTyping(false);
+                addMessage('Connection perdue... Tu es toujours la?', false, 'curious');
+            }
+        }
+
+        // Get Zikao's current status
+        async function getStatus() {
+            try {
+                const response = await fetch(`${API_URL}/status`);
+                const data = await response.json();
+
+                moodText.textContent = data.mood.charAt(0).toUpperCase() + data.mood.slice(1);
+                activityText.textContent = data.activity;
+                updateAvatar(data.mood);
+            } catch (e) {
+                console.log('Status check failed');
+            }
+        }
+
+        // Get greeting
+        async function getGreeting() {
+            try {
+                const response = await fetch(`${API_URL}/react/greeting`);
+                const data = await response.json();
+
+                updateAvatar(data.emotion?.expression || 'happy', data.gesture);
+                addMessage(data.text, false, data.emotion?.expression);
+            } catch (e) {
+                addMessage('Hey! Content de te voir!', false, 'happy');
+            }
+        }
+
+        // Show toast
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', () => sendMessage(textInput.value));
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage(textInput.value);
+        });
+        micBtn.addEventListener('click', toggleRecording);
+
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => updateLanguage(btn.dataset.lang));
+        });
+
+        // Music player elements
+        const musicPlayer = document.getElementById('musicPlayer');
+        const playerCover = document.getElementById('playerCover');
+        const playerTitle = document.getElementById('playerTitle');
+        const playerArtist = document.getElementById('playerArtist');
+        const playBtn = document.getElementById('playBtn');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const searchResults = document.getElementById('searchResults');
+        const musicSearchBtn = document.getElementById('musicSearchBtn');
+        const webSearchBtn = document.getElementById('webSearchBtn');
+
+        let isPlaying = false;
+        let currentTrack = null;
+
+        // Search music
+        async function searchMusic(query) {
+            try {
+                const response = await fetch(`${API_URL}/music/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (!data.found) {
+                    showToast('Aucun resultat trouve');
+                    return;
+                }
+
+                displayMusicResults(data.results);
+            } catch (e) {
+                console.error('Music search error:', e);
+                showToast('Erreur de recherche');
+            }
+        }
+
+        // Display music search results
+        function displayMusicResults(results) {
+            searchResults.innerHTML = results.map(track => `
+                <div class="search-result" onclick="playTrack('${track.id}', '${escapeHtml(track.title)}', '${escapeHtml(track.artist)}', '${track.cover}', '${track.preview}')">
+                    <img src="${track.cover || ''}" alt="">
+                    <div class="info">
+                        <div class="track-title">${escapeHtml(track.title)}</div>
+                        <div class="track-artist">${escapeHtml(track.artist)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Escape HTML
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+            })[char]);
+        }
+
+        // Play track
+        function playTrack(id, title, artist, cover, preview) {
+            currentTrack = { id, title, artist, cover, preview };
+
+            playerTitle.textContent = title;
+            playerArtist.textContent = artist;
+            playerCover.src = cover || '';
+
+            musicPlayer.classList.add('active');
+            searchResults.innerHTML = '';
+
+            if (preview) {
+                audioPlayer.src = preview;
+                audioPlayer.play();
+                isPlaying = true;
+                updatePlayButton();
+            }
+
+            // Log track playing
+            console.log(`[Zikao] Playing: ${title} - ${artist}`);
+        }
+
+        // Toggle play/pause
+        function togglePlay() {
+            if (isPlaying) {
+                audioPlayer.pause();
+            } else {
+                audioPlayer.play();
+            }
+            isPlaying = !isPlaying;
+            updatePlayButton();
+        }
+
+        // Update play button icon
+        function updatePlayButton() {
+            playBtn.innerHTML = isPlaying
+                ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+                : '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+        }
+
+        // Audio events
+        audioPlayer.addEventListener('ended', () => {
+            isPlaying = false;
+            updatePlayButton();
+        });
+
+        playBtn.addEventListener('click', togglePlay);
+
+        // Music search button
+        musicSearchBtn.addEventListener('click', () => {
+            const query = prompt('Rechercher un artiste ou une chanson:');
+            if (query) {
+                searchMusic(query);
+            }
+        });
+
+        // Video player elements
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoFrame = document.getElementById('videoFrame');
+        const videoTitle = document.getElementById('videoTitle');
+        const videoArtist = document.getElementById('videoArtist');
+        const videoLink = document.getElementById('videoLink');
+        const videoSearchBtn = document.getElementById('videoSearchBtn');
+        const pipBtn = document.getElementById('pipBtn');
+        let isPipMode = false;
+
+        // Play video clip - ALWAYS embedded, never open new tab
+        function playVideo(video) {
+            if (!video) return;
+
+            videoTitle.textContent = video.title || 'Clip';
+            videoArtist.textContent = video.artist || '';
+            videoLink.href = video.watchUrl || '#';
+
+            // Build embed URL - even for search fallback, we embed YouTube search
+            let embedUrl = video.embedUrl;
+
+            if (!embedUrl && video.watchUrl) {
+                // Extract video ID from watch URL
+                const videoIdMatch = video.watchUrl.match(/[?&]v=([^&]+)/);
+                if (videoIdMatch) {
+                    embedUrl = `https://www.youtube.com/embed/${videoIdMatch[1]}?autoplay=1&rel=0`;
+                } else if (video.watchUrl.includes('search_query=')) {
+                    // For search URLs, use YouTube's embed search (limited but works)
+                    const searchQuery = video.watchUrl.split('search_query=')[1];
+                    embedUrl = `https://www.youtube.com/embed?listType=search&list=${searchQuery}`;
+                }
+            }
+
+            if (embedUrl) {
+                videoFrame.src = embedUrl;
+                videoPlayer.classList.add('active');
+
+                // Pause any playing music
+                if (isPlaying) {
+                    audioPlayer.pause();
+                    isPlaying = false;
+                    updatePlayButton();
+                }
+
+                console.log(`[Zikao] Playing video: ${video.title}`);
+            } else {
+                showToast('Impossible de charger la vidéo');
+            }
+        }
+
+        // Add video message directly in chat
+        function addVideoMessage(video) {
+            const msgEl = document.createElement('div');
+            msgEl.className = 'message zikao video-message';
+
+            let embedUrl = video.embedUrl;
+            if (!embedUrl && video.id && video.id !== 'search') {
+                embedUrl = `https://www.youtube.com/embed/${video.id}?rel=0`;
+            }
+
+            if (embedUrl) {
+                msgEl.innerHTML = `
+                    <iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                    <div class="video-info">
+                        <div class="video-info-title">${escapeHtml(video.title || 'Clip')}</div>
+                        <div class="video-info-artist">${escapeHtml(video.artist || '')}</div>
+                    </div>
+                `;
+            } else {
+                msgEl.innerHTML = `
+                    <div class="video-info" style="border-radius: 18px;">
+                        <div class="video-info-title">🎬 ${escapeHtml(video.title || 'Clip')}</div>
+                        <div class="video-info-artist">${escapeHtml(video.artist || '')}</div>
+                    </div>
+                `;
+            }
+
+            messagesEl.appendChild(msgEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        // Toggle PIP (Picture-in-Picture) mode
+        function togglePipMode() {
+            isPipMode = !isPipMode;
+            videoPlayer.classList.toggle('pip-mode', isPipMode);
+            pipBtn.classList.toggle('active', isPipMode);
+            pipBtn.textContent = isPipMode ? '⬛' : '⬜';
+            pipBtn.title = isPipMode ? 'Mode normal' : 'Mode PIP';
+
+            // Make draggable in PIP mode
+            if (isPipMode) {
+                makeDraggable(videoPlayer);
+            }
+        }
+
+        // Make element draggable
+        function makeDraggable(element) {
+            const header = element.querySelector('.video-header');
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            header.onmousedown = (e) => {
+                if (e.target.tagName === 'BUTTON') return;
+                isDragging = true;
+                offsetX = e.clientX - element.offsetLeft;
+                offsetY = e.clientY - element.offsetTop;
+                element.style.transition = 'none';
+            };
+
+            document.onmousemove = (e) => {
+                if (!isDragging) return;
+                element.style.left = (e.clientX - offsetX) + 'px';
+                element.style.top = (e.clientY - offsetY) + 'px';
+                element.style.right = 'auto';
+                element.style.bottom = 'auto';
+            };
+
+            document.onmouseup = () => {
+                isDragging = false;
+                element.style.transition = '';
+            };
+        }
+
+        // Close video
+        function closeVideo() {
+            videoPlayer.classList.remove('active', 'pip-mode');
+            videoFrame.src = '';
+            isPipMode = false;
+            pipBtn.classList.remove('active');
+            pipBtn.textContent = '⬜';
+        }
+
+        // Search video
+        async function searchVideo(query) {
+            try {
+                showToast('Recherche du clip...');
+                const response = await fetch(`${API_URL}/video/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (!data.found) {
+                    showToast('Aucun clip trouvé');
+                    return;
+                }
+
+                playVideo(data.video);
+            } catch (e) {
+                console.error('Video search error:', e);
+                showToast('Erreur de recherche vidéo');
+            }
+        }
+
+        // Video search button
+        videoSearchBtn.addEventListener('click', () => {
+            const query = prompt('Rechercher un clip (artiste ou chanson):');
+            if (query) {
+                searchVideo(query);
+            }
+        });
+
+        // Web search button
+        webSearchBtn.addEventListener('click', () => {
+            const query = prompt('Rechercher sur internet:');
+            if (query) {
+                sendMessage(`Recherche sur internet: ${query}`);
+            }
+        });
+
+        // Modified sendMessage to handle silent messages
+        const originalSendMessage = sendMessage;
+        sendMessage = async function(text, silent = false) {
+            if (!text.trim()) return;
+
+            if (!silent) {
+                addMessage(text, true);
+            }
+            textInput.value = '';
+            showTyping(true);
+
+            try {
+                const response = await fetch(`${API_URL}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: userId,
+                        message: text,
+                        withVoice: true
+                    })
+                });
+
+                const data = await response.json();
+                showTyping(false);
+
+                if (data.error) {
+                    addMessage('Hmm, j\'ai eu un bug... Reessaie?', false, 'thinking');
+                    return;
+                }
+
+                const emotionName = data.emotion?.expression || 'neutral';
+                updateAvatar(emotionName, data.gesture);
+                addMessage(data.text, false, emotionName);
+
+                // Auto-play radio if returned
+                if (data.radio) {
+                    playRadio(
+                        data.radio.id,
+                        data.radio.name,
+                        data.radio.genre,
+                        data.radio.logo,
+                        data.radio.streamUrl
+                    );
+                }
+                // Auto-play video if returned - embed in player
+                else if (data.video) {
+                    // Add video as chat message for inline experience
+                    if (data.video.embedUrl || (data.video.id && data.video.id !== 'search')) {
+                        addVideoMessage(data.video);
+                    }
+                    // Also show in floating player for PIP option
+                    playVideo(data.video);
+                }
+                // Auto-play music if returned (and no video)
+                else if (data.music?.preview) {
+                    playTrack(
+                        data.music.id,
+                        data.music.title,
+                        data.music.artist,
+                        data.music.cover,
+                        data.music.preview
+                    );
+                }
+
+                if (data.voice?.url) {
+                    playAudio(data.voice.url);
+                }
+
+            } catch (error) {
+                console.error('API error:', error);
+                showTyping(false);
+                addMessage('Connection perdue... Tu es toujours la?', false, 'curious');
+            }
+        };
+
+        // ==================== NEW FEATURES ====================
+
+        // Modal management
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Singing
+        const singBtn = document.getElementById('singBtn');
+        const singingIndicator = document.getElementById('singingIndicator');
+
+        singBtn.addEventListener('click', async () => {
+            const request = prompt('Que veux-tu que Zikao chante? (theme, style, emotion...)');
+            if (!request) return;
+
+            singingIndicator.classList.add('active');
+            showToast('Zikao compose pour toi...');
+
+            try {
+                const response = await fetch(`${API_URL}/sing`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, request })
+                });
+
+                const data = await response.json();
+                singingIndicator.classList.remove('active');
+
+                if (data.error) {
+                    if (data.fallbackMessage) {
+                        addMessage(data.fallbackMessage, false, 'passionate');
+                    } else {
+                        showToast('Zikao ne peut pas chanter pour le moment');
+                    }
+                    return;
+                }
+
+                // Play the generated song
+                if (data.url) {
+                    addMessage(`J'ai compose "${data.interpreted?.title}" pour toi!`, false, 'excited');
+                    if (data.interpreted?.lyrics) {
+                        addMessage(data.interpreted.lyrics, false, 'passionate');
+                    }
+                    const audio = new Audio(API_URL + data.url);
+                    audio.play();
+                }
+            } catch (e) {
+                singingIndicator.classList.remove('active');
+                showToast('Erreur lors de la composition');
+            }
+        });
+
+        // Stories
+        const storiesBtn = document.getElementById('storiesBtn');
+
+        storiesBtn.addEventListener('click', async () => {
+            openModal('storiesModal');
+            try {
+                const response = await fetch(`${API_URL}/stories`);
+                const stories = await response.json();
+
+                const list = document.getElementById('storiesList');
+                if (stories.length === 0) {
+                    list.innerHTML = '<p style="color: var(--text-dim);">Aucune story pour le moment...</p>';
+                } else {
+                    list.innerHTML = stories.map(s => `
+                        <div class="story-card">
+                            <div class="story-content">${escapeHtml(s.content)}</div>
+                            <div class="story-footer">
+                                <button class="story-action" onclick="likeStory(${s.id})">
+                                    ❤️ ${s.likes}
+                                </button>
+                                <span>${new Date(s.timestamp).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error('Stories error:', e);
+            }
+        });
+
+        async function likeStory(id) {
+            await fetch(`${API_URL}/stories/${id}/like`, { method: 'POST' });
+            storiesBtn.click(); // Refresh
+        }
+
+        // Blind Test
+        const blindTestBtn = document.getElementById('blindTestBtn');
+        let btCurrentTrack = null;
+        let btScore = 0;
+
+        blindTestBtn.addEventListener('click', () => {
+            openModal('blindTestModal');
+            btScore = 0;
+            document.getElementById('btScore').textContent = btScore;
+        });
+
+        async function startBlindTest() {
+            try {
+                const response = await fetch(`${API_URL}/games/blindtest/track`);
+                btCurrentTrack = await response.json();
+
+                if (btCurrentTrack.error) {
+                    showToast('Erreur de chargement');
+                    return;
+                }
+
+                document.getElementById('btStatus').textContent = 'Ecoute bien...';
+                document.getElementById('btTitle').value = '';
+                document.getElementById('btArtist').value = '';
+
+                const audio = document.getElementById('btAudio');
+                audio.src = btCurrentTrack.preview;
+                audio.play();
+
+                // Stop after 10 seconds
+                setTimeout(() => {
+                    audio.pause();
+                    document.getElementById('btStatus').textContent = 'A toi de deviner!';
+                }, 10000);
+            } catch (e) {
+                showToast('Erreur');
+            }
+        }
+
+        async function submitBlindTest() {
+            if (!btCurrentTrack) return;
+
+            const guessTitle = document.getElementById('btTitle').value;
+            const guessArtist = document.getElementById('btArtist').value;
+
+            const response = await fetch(`${API_URL}/games/blindtest/check`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    guessTitle,
+                    guessArtist,
+                    correctTitle: btCurrentTrack.answer.title,
+                    correctArtist: btCurrentTrack.answer.artist
+                })
+            });
+
+            const result = await response.json();
+            btScore += result.score;
+            document.getElementById('btScore').textContent = btScore;
+
+            if (result.correct) {
+                document.getElementById('btStatus').textContent = `Bravo! C'etait "${btCurrentTrack.answer.title}" de ${btCurrentTrack.answer.artist}`;
+            } else {
+                document.getElementById('btStatus').textContent = `Rate! C'etait "${btCurrentTrack.answer.title}" de ${btCurrentTrack.answer.artist}`;
+            }
+
+            btCurrentTrack = null;
+        }
+
+        // Recommendations
+        const recsBtn = document.getElementById('recsBtn');
+
+        recsBtn.addEventListener('click', async () => {
+            openModal('recsModal');
+            try {
+                const response = await fetch(`${API_URL}/recommendations/${userId}`);
+                const data = await response.json();
+
+                const list = document.getElementById('recsList');
+                if (!data.forYou || data.forYou.length === 0) {
+                    list.innerHTML = '<p style="color: var(--text-dim);">Parle-moi de tes gouts musicaux pour avoir des recommandations!</p>';
+                } else {
+                    list.innerHTML = data.forYou.map(r => `
+                        <div class="rec-card" onclick="playTrack(0, '${escapeHtml(r.title)}', '${escapeHtml(r.artist)}', '${r.cover}', '${r.preview}')">
+                            <img src="${r.cover || ''}" alt="">
+                            <div class="rec-info">
+                                <div style="font-weight: 600;">${escapeHtml(r.title)}</div>
+                                <div style="color: var(--text-dim);">${escapeHtml(r.artist)}</div>
+                                <div class="rec-reason">${escapeHtml(r.reason)}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error('Recommendations error:', e);
+            }
+        });
+
+        // Close modals on backdrop click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+
+        // ==================== WEBRADIOS ====================
+
+        const radioBtn = document.getElementById('radioBtn');
+        const radioPlayer = document.getElementById('radioPlayer');
+        const radioAudio = document.getElementById('radioAudio');
+        const radioName = document.getElementById('radioName');
+        const radioGenre = document.getElementById('radioGenre');
+        const radioLogo = document.getElementById('radioLogo');
+        const radioPlayBtn = document.getElementById('radioPlayBtn');
+        let isRadioPlaying = false;
+        let currentRadio = null;
+
+        // Open radio modal
+        radioBtn.addEventListener('click', async () => {
+            openModal('radioModal');
+            try {
+                const response = await fetch(`${API_URL}/radios`);
+                const data = await response.json();
+
+                const list = document.getElementById('radioList');
+                list.innerHTML = data.radios.map(r => `
+                    <div class="radio-item" onclick="playRadio('${r.id}', '${escapeHtml(r.name)}', '${escapeHtml(r.genre)}', '${r.logo}', '${r.streamUrl}')">
+                        <img src="${r.logo}" alt="${r.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📻</text></svg>'">
+                        <div class="radio-item-info">
+                            <div class="radio-item-name">${escapeHtml(r.name)}</div>
+                            <div class="radio-item-genre">${escapeHtml(r.genre)}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Radio list error:', e);
+            }
+        });
+
+        // Play radio
+        function playRadio(id, name, genre, logo, streamUrl) {
+            currentRadio = { id, name, genre, logo, streamUrl };
+
+            radioName.textContent = name;
+            radioGenre.textContent = genre;
+            radioLogo.src = logo;
+            radioLogo.onerror = () => { radioLogo.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">📻</text></svg>'; };
+
+            // Stop any playing music/video
+            if (isPlaying) {
+                audioPlayer.pause();
+                isPlaying = false;
+                updatePlayButton();
+            }
+            closeVideo();
+
+            // Reset and load new stream
+            radioAudio.pause();
+            radioAudio.src = '';
+            radioAudio.load();
+
+            radioAudio.src = streamUrl;
+
+            // Error handling
+            radioAudio.onerror = (e) => {
+                console.error(`[Zikao] Radio error:`, e);
+                showToast(`Erreur de connexion à ${name}`);
+            };
+
+            radioAudio.oncanplay = () => {
+                console.log(`[Zikao] Radio stream ready: ${name}`);
+            };
+
+            const playPromise = radioAudio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log(`[Zikao] Playing radio: ${name}`);
+                    isRadioPlaying = true;
+                    updateRadioButton();
+                }).catch(err => {
+                    console.error(`[Zikao] Radio play error:`, err);
+                    showToast(`Impossible de lancer ${name}`);
+                    isRadioPlaying = false;
+                    updateRadioButton();
+                });
+            }
+
+            isRadioPlaying = true;
+            updateRadioButton();
+
+            radioPlayer.classList.add('active');
+            closeModal('radioModal');
+        }
+
+        // Toggle radio play/pause
+        function toggleRadio() {
+            if (isRadioPlaying) {
+                radioAudio.pause();
+            } else {
+                radioAudio.play();
+            }
+            isRadioPlaying = !isRadioPlaying;
+            updateRadioButton();
+        }
+
+        // Update radio button icon
+        function updateRadioButton() {
+            radioPlayBtn.innerHTML = isRadioPlaying
+                ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+                : '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+        }
+
+        // Close radio
+        function closeRadio() {
+            radioAudio.pause();
+            radioAudio.src = '';
+            isRadioPlaying = false;
+            currentRadio = null;
+            radioPlayer.classList.remove('active');
+            updateRadioButton();
+            hideRecognized();
+        }
+
+        // Radio Shazam - recognize current song on radio
+        const radioShazamBtn = document.getElementById('radioShazamBtn');
+        const radioRecognized = document.getElementById('radioRecognized');
+        let isRadioShazaming = false;
+
+        async function shazamRadio() {
+            if (isRadioShazaming || !isRadioPlaying || !currentRadio) {
+                if (!isRadioPlaying) {
+                    showToast('Lance la radio d\'abord');
+                }
+                return;
+            }
+
+            isRadioShazaming = true;
+            radioShazamBtn.classList.add('listening');
+            showToast('Analyse du flux radio... 🎵');
+
+            try {
+                // Use server-side radio recognition (no microphone needed!)
+                const resp = await fetch(`${API_URL}/recognize/radio`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        radioId: currentRadio.id,
+                        streamUrl: currentRadio.streamUrl
+                    })
+                });
+
+                const result = await resp.json();
+
+                if (result.found || result.success) {
+                    showRecognized(result);
+                    showToast(`🎵 ${result.title} - ${result.artist}`);
+                    addMessage(`Sur ${currentRadio.name}: "${result.title}" de ${result.artist}`, false, 'groovy');
+                } else {
+                    showToast('Morceau non reconnu');
+                    addMessage("Je n'ai pas reconnu ce titre... Peut-être une pub ou un jingle?", false, 'thinking');
+                }
+            } catch (e) {
+                console.error('Radio recognition error:', e);
+                showToast('Erreur de reconnaissance');
+            }
+
+            isRadioShazaming = false;
+            radioShazamBtn.classList.remove('listening');
+        }
+
+        let currentArtistProfile = null;
+
+        function showRecognized(result) {
+            document.getElementById('recTitle').textContent = result.title || 'Inconnu';
+            document.getElementById('recArtist').textContent = result.artist || 'Artiste inconnu';
+            document.getElementById('recCover').src = result.cover || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🎵</text></svg>';
+
+            // Store artist profile for later
+            currentArtistProfile = result.artistProfile;
+            document.getElementById('recMoreBtn').style.display = currentArtistProfile ? 'inline-block' : 'none';
+
+            radioRecognized.classList.add('show');
+        }
+
+        function hideRecognized() {
+            radioRecognized.classList.remove('show');
+            currentArtistProfile = null;
+        }
+
+        function showArtistProfile() {
+            if (!currentArtistProfile) {
+                showToast('Profil artiste non disponible');
+                return;
+            }
+
+            const profile = currentArtistProfile;
+            const pip = document.getElementById('artistPip');
+            const formatFans = (n) => n >= 1000000 ? (n/1000000).toFixed(1) + 'M' : n >= 1000 ? (n/1000).toFixed(0) + 'K' : n;
+
+            // Fill PIP header
+            document.getElementById('pipArtistPhoto').src = profile.picture || '';
+            document.getElementById('pipArtistName').textContent = profile.name;
+            document.getElementById('pipArtistStats').textContent = `❤️ ${formatFans(profile.fans)} fans • 💿 ${profile.albumCount} albums`;
+            document.getElementById('pipArtistLink').href = profile.link || '#';
+
+            // Fill top tracks
+            const tracksSection = document.getElementById('pipTopTracks');
+            const tracksList = tracksSection.querySelector('.pip-tracks-list');
+            if (profile.topTracks?.length) {
+                tracksList.innerHTML = profile.topTracks.slice(0, 3).map(t => `
+                    <div class="pip-track" onclick="playPreview('${t.preview}', '${escapeHtml(t.title)}', '${escapeHtml(profile.name)}')">
+                        <img src="${t.cover || ''}" alt="">
+                        <span>${t.title}</span>
+                    </div>
+                `).join('');
+                tracksSection.style.display = 'block';
+            } else {
+                tracksSection.style.display = 'none';
+            }
+
+            // Fill albums
+            const albumsSection = document.getElementById('pipAlbums');
+            const albumsGrid = albumsSection.querySelector('.pip-albums-grid');
+            if (profile.albums?.length) {
+                albumsGrid.innerHTML = profile.albums.slice(0, 4).map(a => `
+                    <div class="pip-album" onclick="window.open('${a.link}', '_blank')">
+                        <img src="${a.cover || ''}" alt="${a.title}">
+                        <span>${a.title}</span>
+                    </div>
+                `).join('');
+                albumsSection.style.display = 'block';
+            } else {
+                albumsSection.style.display = 'none';
+            }
+
+            // Show PIP
+            pip.classList.add('show');
+        }
+
+        function closeArtistPip() {
+            document.getElementById('artistPip').classList.remove('show');
+        }
+
+        function playPreview(url, title, artist) {
+            if (!url) {
+                showToast('Aperçu non disponible');
+                return;
+            }
+            // Use the main audio player for preview
+            document.getElementById('playerTitle').textContent = title;
+            document.getElementById('playerArtist').textContent = artist;
+            audioPlayer.src = url;
+            audioPlayer.play();
+            isPlaying = true;
+            updatePlayButton();
+            musicPlayer.classList.add('active');
+            // Close both PIP and modal (whichever is open)
+            closeArtistPip();
+            closeModal('artistModal');
+        }
+
+        // ==================== ZIKAO MUSIC RECOGNITION ====================
+
+        const shazamBtn = document.getElementById('shazamBtn');
+        const zikaoListening = document.getElementById('zikaoListening');
+        const recognitionResult = document.getElementById('recognitionResult');
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recognitionStream = null;
+
+        // Start music recognition
+        shazamBtn.addEventListener('click', startRecognition);
+
+        async function startRecognition() {
+            // If radio is playing, use server-side recognition (no mic needed)
+            if (isRadioPlaying && currentRadio) {
+                shazamRadio();
+                return;
+            }
+
+            // Check if microphone API is available (requires HTTPS or localhost)
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showToast('Micro indisponible en HTTP');
+                addMessage("Pour la reconnaissance via micro, accède en HTTPS ou localhost. Si la radio joue, utilise le bouton vert sur le lecteur radio.", false, 'thinking');
+                return;
+            }
+
+            try {
+                // Check if API is configured
+                const statusResp = await fetch(`${API_URL}/recognize/status`);
+                const status = await statusResp.json();
+
+                if (!status.available) {
+                    showToast('Reconnaissance non configurée. Ajoute ACRCLOUD ou AUDD dans .env');
+                    addMessage("La reconnaissance musicale n'est pas encore configurée. Tu peux ajouter une clé API dans le fichier .env", false, 'thinking');
+                    return;
+                }
+
+                // Request microphone access
+                recognitionStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        sampleRate: 44100
+                    }
+                });
+
+                // Show listening indicator
+                zikaoListening.classList.add('active');
+                recognitionResult.classList.remove('active');
+
+                // Start recording
+                audioChunks = [];
+                mediaRecorder = new MediaRecorder(recognitionStream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        audioChunks.push(e.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    zikaoListening.classList.remove('active');
+
+                    if (audioChunks.length === 0) {
+                        showToast('Pas d\'audio capturé');
+                        return;
+                    }
+
+                    showToast('Zikao analyse la musique...');
+
+                    // Convert to base64
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+
+                    reader.onloadend = async () => {
+                        const base64Audio = reader.result.split(',')[1];
+
+                        try {
+                            const response = await fetch(`${API_URL}/recognize`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ audio: base64Audio })
+                            });
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                                showRecognitionResult(result);
+                                addMessage(`J'ai trouvé! C'est "${result.title}" de ${result.artist}`, false, 'excited');
+                            } else if (result.needsKey) {
+                                addMessage(result.message, false, 'thinking');
+                            } else {
+                                addMessage(result.message || "Je n'ai pas reconnu cette chanson...", false, 'curious');
+                            }
+                        } catch (e) {
+                            console.error('Recognition error:', e);
+                            addMessage("Erreur lors de la reconnaissance", false, 'thinking');
+                        }
+                    };
+
+                    reader.readAsDataURL(audioBlob);
+                };
+
+                mediaRecorder.start();
+
+                // Record for 10 seconds then stop
+                setTimeout(() => {
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        stopRecognition();
+                    }
+                }, 10000);
+
+            } catch (e) {
+                console.error('Recognition start error:', e);
+                zikaoListening.classList.remove('active');
+
+                if (e.name === 'NotAllowedError') {
+                    showToast('Accès au micro refusé');
+                } else {
+                    showToast('Erreur: ' + e.message);
+                }
+            }
+        }
+
+        function stopRecognition() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            if (recognitionStream) {
+                recognitionStream.getTracks().forEach(track => track.stop());
+                recognitionStream = null;
+            }
+        }
+
+        function cancelRecognition() {
+            audioChunks = [];
+            stopRecognition();
+            zikaoListening.classList.remove('active');
+            showToast('Reconnaissance annulée');
+        }
+
+        function showRecognitionResult(result) {
+            document.getElementById('resultTitle').textContent = result.title || '-';
+            document.getElementById('resultArtist').textContent = result.artist || '-';
+            document.getElementById('resultAlbum').textContent = result.album || '';
+
+            const cover = document.getElementById('resultCover');
+            if (result.cover) {
+                cover.src = result.cover;
+                cover.style.display = 'block';
+            } else {
+                cover.style.display = 'none';
+            }
+
+            // Build links
+            const linksEl = document.getElementById('resultLinks');
+            let linksHtml = '';
+
+            if (result.spotify) {
+                linksHtml += `<a class="link-btn" href="${result.spotify}" target="_blank">Spotify</a>`;
+            }
+            if (result.deezer) {
+                linksHtml += `<a class="link-btn" href="${result.deezer}" target="_blank">Adinformatik</a>`;
+            }
+            if (result.youtube) {
+                linksHtml += `<a class="link-btn" href="${result.youtube}" target="_blank">YouTube</a>`;
+            }
+            if (result.appleMusic) {
+                linksHtml += `<a class="link-btn" href="${result.appleMusic}" target="_blank">Apple Music</a>`;
+            }
+
+            // Add play button if we have preview
+            if (result.preview) {
+                linksHtml += `<button class="link-btn" onclick="playRecognizedTrack('${escapeHtml(result.title)}', '${escapeHtml(result.artist)}', '${result.cover || ''}', '${result.preview}')">▶ Écouter</button>`;
+            }
+
+            linksEl.innerHTML = linksHtml;
+            recognitionResult.classList.add('active');
+        }
+
+        function playRecognizedTrack(title, artist, cover, preview) {
+            playTrack(0, title, artist, cover, preview);
+            recognitionResult.classList.remove('active');
+        }
+
+        // Initialize
+        initSpeechRecognition();
+        getStatus();
+        setTimeout(getGreeting, 500);
+
+        // Refresh status periodically
+        setInterval(getStatus, 60000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  zikao-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: zikao-api
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./data:/opt/zikao/data
+      - ./voices:/opt/zikao/voices
+      - ./frontend:/opt/zikao/frontend
+    env_file:
+      - .env
+    networks:
+      - zikao-network
+
+networks:
+  zikao-network:
+    driver: bridge
