@@ -59,9 +59,15 @@ const VOICES_DIR = '/opt/zikao/voices';
 // OpenRouter (Claude)
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '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';
-// Modèles pour roleplay immersif (Llama accepte mieux les personnages)
-const PRIMARY_MODEL = 'meta-llama/llama-3.3-70b-instruct';
-const FALLBACK_MODELS = [PRIMARY_MODEL, 'mistralai/mistral-large', 'meta-llama/llama-3.1-70b-instruct:free'];
+// Modèles pour roleplay immersif - openrouter/free sélectionne auto les modèles gratuits dispo
+const PRIMARY_MODEL = 'openrouter/auto';
+const FALLBACK_MODELS = [
+    'openrouter/auto',           // Auto-select best available
+    'deepseek/deepseek-r1:free', // DeepSeek R1 gratuit
+    'meta-llama/llama-4-scout:free',
+    'mistralai/mistral-small-3.1-24b-instruct:free',
+    'google/gemini-2.0-flash-exp:free'
+];
 
 // OpenAI TTS
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';

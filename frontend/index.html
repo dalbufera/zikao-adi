@@ -31,6 +31,71 @@
             color: var(--text);
             min-height: 100vh;
             overflow: hidden;
+            position: relative;
+        }
+
+        /* Premium fullscreen background - Afro woman singer */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1920&q=85');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.4;
+            z-index: -2;
+            pointer-events: none;
+            filter: saturate(1.3) contrast(1.1);
+        }
+
+        /* Premium dark overlay with purple accent glow */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background:
+                radial-gradient(ellipse at 20% 80%, rgba(124, 58, 237, 0.2) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.15) 0%, transparent 40%),
+                radial-gradient(ellipse at 50% 50%, rgba(10, 10, 15, 0.5) 0%, rgba(10, 10, 15, 0.7) 100%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Animated ambient glow effect */
+        @keyframes ambientGlow {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.05); }
+        }
+
+        .ambient-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.3) 0%, transparent 70%);
+            filter: blur(80px);
+            z-index: -1;
+            pointer-events: none;
+            animation: ambientGlow 8s ease-in-out infinite;
+        }
+
+        .ambient-glow.top-right {
+            top: -200px;
+            right: -200px;
+        }
+
+        .ambient-glow.bottom-left {
+            bottom: -200px;
+            left: -200px;
+            animation-delay: -4s;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.2) 0%, transparent 70%);
         }
 
         .container {
@@ -40,21 +105,33 @@
             max-width: 100%;
         }
 
-        /* Header */
+        /* Header - Premium glassmorphism */
         .header {
             padding: 1rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+            background: rgba(20, 20, 31, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(124, 58, 237, 0.3);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
         }
 
         .logo {
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+            background: linear-gradient(135deg, var(--accent), var(--accent-glow), #ec4899);
+            background-size: 200% 200%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            animation: logoGradient 5s ease infinite;
+            text-shadow: 0 0 30px rgba(124, 58, 237, 0.5);
+        }
+
+        @keyframes logoGradient {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
         }
 
         .status {
@@ -232,10 +309,13 @@
             flex: 1.5;
             display: flex;
             flex-direction: column;
-            background: var(--bg-card);
-            border-radius: 20px;
-            border: 1px solid rgba(124, 58, 237, 0.2);
+            background: rgba(20, 20, 31, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 24px;
+            border: 1px solid rgba(124, 58, 237, 0.25);
             overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
         }
 
         .messages {
@@ -311,19 +391,23 @@
 
         .text-input {
             flex: 1;
-            background: var(--bg-dark);
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(124, 58, 237, 0.3);
-            border-radius: 12px;
-            padding: 1rem 1.25rem;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
             color: var(--text);
             font-family: inherit;
             font-size: 1rem;
             outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
         }
 
         .text-input:focus {
             border-color: var(--accent);
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 20px rgba(124, 58, 237, 0.3);
         }
 
         .text-input::placeholder {
@@ -331,26 +415,29 @@
         }
 
         .btn {
-            width: 50px;
-            height: 50px;
+            width: 54px;
+            height: 54px;
             border-radius: 50%;
             border: none;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
 
         .btn-mic {
-            background: var(--accent);
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-glow) 100%);
             color: white;
             font-size: 1.25rem;
+            box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
         }
 
         .btn-mic:hover {
-            background: var(--accent-glow);
-            transform: scale(1.05);
+            background: linear-gradient(135deg, var(--accent-glow) 0%, #ec4899 100%);
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(124, 58, 237, 0.5);
         }
 
         .btn-mic.recording {
@@ -364,14 +451,16 @@
         }
 
         .btn-send {
-            background: var(--accent);
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-glow) 100%);
             color: white;
             font-size: 1.25rem;
+            box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
         }
 
         .btn-send:hover {
-            background: var(--accent-glow);
-            transform: scale(1.05);
+            background: linear-gradient(135deg, var(--accent-glow) 0%, #ec4899 100%);
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(124, 58, 237, 0.5);
         }
 
         /* Toolbar */
@@ -398,17 +487,33 @@
             border-color: var(--accent);
         }
 
-        /* Music Player */
+        /* Music Player - Premium Style */
         .music-player {
-            background: rgba(124, 58, 237, 0.15);
-            border-radius: 12px;
-            padding: 1rem;
-            margin: 0.5rem 1.5rem;
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(236, 72, 153, 0.1) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin: 0.75rem 1.5rem;
             display: none;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            box-shadow: 0 4px 20px rgba(124, 58, 237, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .music-player:hover {
+            box-shadow: 0 6px 30px rgba(124, 58, 237, 0.3);
+            transform: translateY(-2px);
         }
 
         .music-player.active {
             display: block;
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .music-player .track-info {
@@ -418,10 +523,16 @@
         }
 
         .music-player .cover {
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
             object-fit: cover;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease;
+        }
+
+        .music-player .cover:hover {
+            transform: scale(1.05);
         }
 
         .music-player .details {
@@ -1600,6 +1711,10 @@
     </style>
 </head>
 <body>
+    <!-- Premium ambient glow effects -->
+    <div class="ambient-glow top-right"></div>
+    <div class="ambient-glow bottom-left"></div>
+
     <div class="container">
         <header class="header">
             <div class="logo">ZIKAO</div>
