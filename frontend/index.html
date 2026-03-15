@@ -1352,21 +1352,70 @@
         /* Singing indicator */
         .singing-indicator {
             display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             background: linear-gradient(135deg, var(--accent), #ec4899);
-            border-radius: 12px;
-            padding: 1rem;
-            margin: 0.5rem 1.5rem;
+            border-radius: 20px;
+            padding: 2rem;
             text-align: center;
+            z-index: 2000;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            min-width: 300px;
         }
 
         .singing-indicator.active {
             display: block;
-            animation: rainbow 2s infinite;
+            animation: pulseGlow 2s infinite;
         }
 
-        @keyframes rainbow {
-            0% { filter: hue-rotate(0deg); }
-            100% { filter: hue-rotate(360deg); }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 20px 60px rgba(124, 58, 237, 0.5); }
+            50% { box-shadow: 0 20px 80px rgba(236, 72, 153, 0.7); }
+        }
+
+        .singing-icon {
+            font-size: 3rem;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .singing-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1rem 0 0.5rem;
+            color: white;
+        }
+
+        .singing-progress {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 1rem;
+        }
+
+        .singing-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .singing-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: white;
+            border-radius: 3px;
+            animation: progressAnim 60s linear forwards;
+        }
+
+        @keyframes progressAnim {
+            0% { width: 0%; }
+            100% { width: 100%; }
         }
 
         /* Zikao listening indicator (music recognition) */
@@ -1726,7 +1775,10 @@
 
     <!-- Singing Indicator -->
     <div class="singing-indicator" id="singingIndicator">
-        Zikao compose une chanson pour toi...
+        <div class="singing-icon">🎤</div>
+        <div class="singing-text">Zikao compose une chanson pour toi...</div>
+        <div class="singing-progress" id="singingProgress">Préparation...</div>
+        <div class="singing-bar"><div class="singing-bar-fill"></div></div>
     </div>
 
     <!-- Zikao Music Recognition (like Shazam) -->
@@ -2514,13 +2566,31 @@
         // Singing
         const singBtn = document.getElementById('singBtn');
         const singingIndicator = document.getElementById('singingIndicator');
+        const singingProgress = document.getElementById('singingProgress');
+
+        function updateSingingProgress(text) {
+            if (singingProgress) singingProgress.textContent = text;
+        }
 
         singBtn.addEventListener('click', async () => {
             const request = prompt('Que veux-tu que Zikao chante? (theme, style, emotion...)');
             if (!request) return;
 
             singingIndicator.classList.add('active');
-            showToast('Zikao compose pour toi...');
+            updateSingingProgress('Analyse de ta demande...');
+
+            // Progress simulation
+            const progressSteps = [
+                { time: 2000, text: 'Création des paroles...' },
+                { time: 5000, text: 'Envoi à Suno AI...' },
+                { time: 10000, text: 'Génération de la musique...' },
+                { time: 30000, text: 'Composition en cours...' },
+                { time: 50000, text: 'Finalisation...' }
+            ];
+
+            const progressTimers = progressSteps.map(step =>
+                setTimeout(() => updateSingingProgress(step.text), step.time)
+            );
 
             try {
                 const response = await fetch(`${API_URL}/sing`, {
@@ -2528,6 +2598,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId, request })
                 });
+
+                // Clear progress timers
+                progressTimers.forEach(t => clearTimeout(t));
 
                 const data = await response.json();
                 singingIndicator.classList.remove('active');
@@ -2543,14 +2616,16 @@
 
                 // Play the generated song
                 if (data.url) {
-                    addMessage(`J'ai compose "${data.interpreted?.title}" pour toi!`, false, 'excited');
+                    addMessage(`J'ai composé "${data.interpreted?.title}" pour toi! 🎵`, false, 'excited');
                     if (data.interpreted?.lyrics) {
                         addMessage(data.interpreted.lyrics, false, 'passionate');
                     }
                     const audio = new Audio(API_URL + data.url);
                     audio.play();
+                    showToast('🎤 Chanson prête !');
                 }
             } catch (e) {
+                progressTimers.forEach(t => clearTimeout(t));
                 singingIndicator.classList.remove('active');
                 showToast('Erreur lors de la composition');
             }
