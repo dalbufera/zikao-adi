@@ -42,6 +42,13 @@ if (useSSL) {
 
 const wss = new WebSocket.Server({ server });
 
+// Also listen on HTTP for reverse proxy (internal network)
+const HTTP_PORT = process.env.HTTP_PORT || 3101;
+const httpServer = http.createServer(app);
+httpServer.listen(HTTP_PORT, () => {
+    console.log(`[Zikao] HTTP proxy port: ${HTTP_PORT}`);
+});
+
 app.use(cors());
 app.use(express.json());
 
@@ -56,18 +63,20 @@ const VOICES_DIR = '/opt/zikao/voices';
 
 // ==================== CONFIGURATION ====================
 
-// OpenRouter (Claude)
+// Ollama local (désactivé - CPU sans AVX trop lent)
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://intranet-ollama:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
+const USE_OLLAMA = process.env.USE_OLLAMA === 'true'; // désactivé par défaut
+
+// OpenRouter
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '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';
-// Modèles gratuits disponibles sur OpenRouter (mars 2026)
+const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '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';
 const PRIMARY_MODEL = 'openrouter/free';
+// openrouter/free auto-route vers un modèle dispo, retry 3x en cas de rate-limit
 const FALLBACK_MODELS = [
-    'openrouter/free',                    // Auto-select from free models
-    'qwen/qwen3-next-80b-a3b-instruct:free',  // Qwen3 80B gratuit
-    'nvidia/nemotron-3-super-120b-a12b:free', // Nvidia 120B gratuit
-    'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
-    'google/gemma-3n-e2b-it:free',
-    'arcee-ai/trinity-large-preview:free'
+    'openrouter/free',
+    'openrouter/free',
+    'openrouter/free'
 ];
 
 // OpenAI TTS
@@ -282,8 +291,35 @@ async function askZikao(userId, message) {
     }
     messages.push({ role: 'user', content: message });
 
-    // Try models in order
-    for (const model of FALLBACK_MODELS) {
+    // Try Ollama first (local, free, fast)
+    if (USE_OLLAMA) {
+        try {
+            const resp = await fetch(`${OLLAMA_URL}/api/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: OLLAMA_MODEL,
+                    messages: messages,
+                    stream: false,
+                    options: { temperature: 0.9, num_predict: 500 }
+                })
+            });
+            const result = await resp.json();
+            const content = result.message?.content;
+            if (content) {
+                console.log(`[Zikao] Ollama (${OLLAMA_MODEL}) responded OK`);
+                updateUserMemory(userId, message, content);
+                return parseEmotionAndGestures(content);
+            }
+        } catch (e) {
+            console.log(`[Zikao] Ollama failed: ${e.message}, falling back to OpenRouter`);
+        }
+    }
+
+    // OpenRouter models (with retry + delay on rate-limit)
+    for (let i = 0; i < FALLBACK_MODELS.length; i++) {
+        const model = FALLBACK_MODELS[i];
+        if (i > 0) await new Promise(r => setTimeout(r, 2000)); // 2s delay between retries
         try {
             const resp = await fetch(OPENROUTER_URL, {
                 method: 'POST',
@@ -297,22 +333,19 @@ async function askZikao(userId, message) {
                     model: model,
                     messages: messages,
                     max_tokens: 500,
-                    temperature: 0.9 // More creative/human
+                    temperature: 0.9
                 })
             });
 
             const result = await resp.json();
             if (result.error) {
-                console.log(`Zikao model ${model} error:`, result.error.message);
+                console.log(`[Zikao] OpenRouter attempt ${i+1} error:`, result.error.message);
                 continue;
             }
 
             const content = result.choices?.[0]?.message?.content;
             if (content) {
-                // Update memory
                 updateUserMemory(userId, message, content);
-
-                // Parse emotion and gestures
                 return parseEmotionAndGestures(content);
             }
         } catch (e) {
@@ -1167,29 +1200,54 @@ Réponds en JSON strict:
 }`;
 
     try {
-        const resp = await fetch(OPENROUTER_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${OPENROUTER_KEY}`,
-                'HTTP-Referer': 'https://zikao.app',
-                'X-Title': 'Zikao Music AI'
-            },
-            body: JSON.stringify({
-                model: PRIMARY_MODEL,
-                messages: [{ role: 'user', content: interpretPrompt }],
-                max_tokens: 500,
-                temperature: 0.8
-            })
-        });
+        let content = null;
 
-        const result = await resp.json();
-        console.log('[Zikao] Song LLM response:', JSON.stringify(result).substring(0, 500));
-        const content = result.choices?.[0]?.message?.content;
+        // Try Ollama first
+        if (USE_OLLAMA) {
+            try {
+                const ollamaResp = await fetch(`${OLLAMA_URL}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: OLLAMA_MODEL,
+                        messages: [{ role: 'user', content: interpretPrompt }],
+                        stream: false,
+                        options: { temperature: 0.8, num_predict: 500 }
+                    })
+                });
+                const ollamaResult = await ollamaResp.json();
+                content = ollamaResult.message?.content;
+                if (content) console.log('[Zikao] Song Ollama responded OK');
+            } catch (e) {
+                console.log(`[Zikao] Song Ollama failed: ${e.message}`);
+            }
+        }
+
+        // Fallback to OpenRouter
+        if (!content) {
+            const resp = await fetch(OPENROUTER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${OPENROUTER_KEY}`,
+                    'HTTP-Referer': 'https://zikao.app',
+                    'X-Title': 'Zikao Music AI'
+                },
+                body: JSON.stringify({
+                    model: PRIMARY_MODEL,
+                    messages: [{ role: 'user', content: interpretPrompt }],
+                    max_tokens: 500,
+                    temperature: 0.8
+                })
+            });
+            const result = await resp.json();
+            console.log('[Zikao] Song LLM response:', JSON.stringify(result).substring(0, 500));
+            content = result.choices?.[0]?.message?.content;
+        }
 
         if (!content) {
-            console.error('[Zikao] No response from LLM for song interpretation:', result.error || result);
-            return { error: 'Could not interpret singing request: ' + (result.error?.message || 'LLM error') };
+            console.error('[Zikao] No response from LLM for song interpretation');
+            return { error: 'Could not interpret singing request: LLM error' };
         }
 
         // Extract song data using regex (more robust than JSON.parse for LLM output)
@@ -1957,6 +2015,258 @@ async function recognizeSong(audioData, format = 'base64') {
     };
 }
 
+// ==================== API KEY MANAGEMENT ====================
+
+const API_KEYS_FILE = path.join(DATA_DIR, 'api_keys.json');
+
+function loadApiKeys() {
+    try {
+        if (fs.existsSync(API_KEYS_FILE)) return JSON.parse(fs.readFileSync(API_KEYS_FILE, 'utf8'));
+    } catch (e) { console.log('[Zikao] Error loading API keys:', e.message); }
+    return [];
+}
+
+function saveApiKeys(keys) {
+    fs.writeFileSync(API_KEYS_FILE, JSON.stringify(keys, null, 2));
+}
+
+function generateApiKey() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let key = 'zk_';
+    for (let i = 0; i < 48; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
+    return key;
+}
+
+// Middleware: Authentik SSO admin check (forward-auth headers from nginx)
+function requireAdmin(req, res, next) {
+    const username = req.headers['x-authentik-username'];
+    const groups = req.headers['x-authentik-groups'] || '';
+    const name = req.headers['x-authentik-name'];
+
+    if (!username) {
+        return res.status(401).json({ error: 'Authentification requise. Connectez-vous via Authentik.' });
+    }
+
+    // Check if user is admin (in "admins" or "Administrateurs" group, or is superuser)
+    const groupList = groups.split(',').map(g => g.trim().toLowerCase());
+    const isAdmin = groupList.some(g => ['admins', 'administrateurs', 'admin', 'authentik admins', 'superusers'].includes(g));
+
+    if (!isAdmin) {
+        return res.status(403).json({ error: `Accès refusé. L'utilisateur "${username}" n'est pas administrateur.` });
+    }
+
+    req.adminUser = { username, name, groups };
+    next();
+}
+
+// Middleware: API key validation for external API
+function requireApiKey(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'API key requise. Header: Authorization: Bearer <votre-clé>' });
+    }
+
+    const apiKey = authHeader.substring(7);
+    const keys = loadApiKeys();
+    const keyEntry = keys.find(k => k.key === apiKey && k.active);
+
+    if (!keyEntry) {
+        return res.status(403).json({ error: 'Clé API invalide ou révoquée.' });
+    }
+
+    // Update usage stats
+    keyEntry.lastUsed = new Date().toISOString();
+    keyEntry.requests = (keyEntry.requests || 0) + 1;
+    saveApiKeys(keys);
+
+    req.apiKeyInfo = keyEntry;
+    next();
+}
+
+// ==================== ADMIN ROUTES (Authentik protected) ====================
+
+// Serve admin page
+app.get('/admin', requireAdmin, (req, res) => {
+    res.sendFile('/opt/zikao/frontend/admin.html');
+});
+
+// Get admin user info
+app.get('/admin/me', requireAdmin, (req, res) => {
+    res.json(req.adminUser);
+});
+
+// List all API keys
+app.get('/admin/api-keys', requireAdmin, (req, res) => {
+    const keys = loadApiKeys();
+    // Mask keys for display (show only first 6 + last 4 chars)
+    const masked = keys.map(k => ({
+        ...k,
+        key: k.key.substring(0, 6) + '...' + k.key.substring(k.key.length - 4),
+        fullKey: undefined
+    }));
+    res.json(masked);
+});
+
+// Create new API key
+app.post('/admin/api-keys', requireAdmin, (req, res) => {
+    const { name, description, permissions } = req.body;
+    if (!name) return res.status(400).json({ error: 'Nom requis pour la clé API' });
+
+    const keys = loadApiKeys();
+    const newKey = {
+        id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8),
+        key: generateApiKey(),
+        name,
+        description: description || '',
+        permissions: permissions || ['chat', 'music', 'status'],
+        active: true,
+        createdBy: req.adminUser.username,
+        createdAt: new Date().toISOString(),
+        lastUsed: null,
+        requests: 0
+    };
+
+    keys.push(newKey);
+    saveApiKeys(keys);
+
+    // Return full key only on creation (only time it's visible)
+    res.json({ ...newKey, message: 'Clé créée. Copiez-la maintenant, elle ne sera plus visible en entier.' });
+});
+
+// Revoke API key
+app.delete('/admin/api-keys/:id', requireAdmin, (req, res) => {
+    const keys = loadApiKeys();
+    const key = keys.find(k => k.id === req.params.id);
+    if (!key) return res.status(404).json({ error: 'Clé introuvable' });
+
+    key.active = false;
+    key.revokedBy = req.adminUser.username;
+    key.revokedAt = new Date().toISOString();
+    saveApiKeys(keys);
+
+    res.json({ message: `Clé "${key.name}" révoquée.` });
+});
+
+// Reactivate API key
+app.patch('/admin/api-keys/:id', requireAdmin, (req, res) => {
+    const keys = loadApiKeys();
+    const key = keys.find(k => k.id === req.params.id);
+    if (!key) return res.status(404).json({ error: 'Clé introuvable' });
+
+    key.active = true;
+    delete key.revokedBy;
+    delete key.revokedAt;
+    saveApiKeys(keys);
+
+    res.json({ message: `Clé "${key.name}" réactivée.` });
+});
+
+// Delete API key permanently
+app.delete('/admin/api-keys/:id/permanent', requireAdmin, (req, res) => {
+    let keys = loadApiKeys();
+    const idx = keys.findIndex(k => k.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Clé introuvable' });
+
+    const removed = keys.splice(idx, 1)[0];
+    saveApiKeys(keys);
+
+    res.json({ message: `Clé "${removed.name}" supprimée définitivement.` });
+});
+
+// API usage stats
+app.get('/admin/stats', requireAdmin, (req, res) => {
+    const keys = loadApiKeys();
+    const totalRequests = keys.reduce((sum, k) => sum + (k.requests || 0), 0);
+    const activeKeys = keys.filter(k => k.active).length;
+
+    res.json({
+        totalKeys: keys.length,
+        activeKeys,
+        revokedKeys: keys.length - activeKeys,
+        totalRequests,
+        keys: keys.map(k => ({
+            name: k.name,
+            requests: k.requests || 0,
+            lastUsed: k.lastUsed,
+            active: k.active
+        }))
+    });
+});
+
+// ==================== EXTERNAL API v1 (API key protected) ====================
+
+// API v1: Chat with Zikao
+app.post('/api/v1/chat', requireApiKey, async (req, res) => {
+    const { message, userId } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message requis' });
+
+    const uid = userId || `api_${req.apiKeyInfo.id}`;
+    console.log(`[Zikao API] ${req.apiKeyInfo.name}: "${message.substring(0, 50)}..."`);
+
+    try {
+        const mentionedArtist = extractArtistFromMessage(message);
+        const mem = getUserMemory(uid);
+        if (mentionedArtist) mem.lastMentionedArtist = mentionedArtist;
+
+        const aiResponse = await askZikao(uid, message);
+
+        const response = {
+            text: aiResponse.text,
+            emotion: aiResponse.emotion,
+            music: null
+        };
+
+        // If user seems to want music, try to find it
+        if (wantsToListen(message)) {
+            const artist = mentionedArtist || mem.lastMentionedArtist;
+            if (artist) {
+                const search = await searchMusic(artist, 'artist');
+                if (search.found && search.results.length > 0) {
+                    response.music = search.results[0];
+                }
+            }
+        }
+
+        res.json(response);
+    } catch (e) {
+        console.error('[Zikao API] Error:', e.message);
+        res.status(500).json({ error: 'Erreur interne' });
+    }
+});
+
+// API v1: Search music
+app.get('/api/v1/music/search', requireApiKey, async (req, res) => {
+    const { q, type } = req.query;
+    if (!q) return res.status(400).json({ error: 'Paramètre q requis' });
+
+    try {
+        const result = await searchMusic(q, type || 'track');
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: 'Erreur recherche musique' });
+    }
+});
+
+// API v1: Get Zikao status
+app.get('/api/v1/status', requireApiKey, (req, res) => {
+    const state = getZikaoCurrentState();
+    res.json(state);
+});
+
+// API v1: API info & docs
+app.get('/api/v1', (req, res) => {
+    res.json({
+        name: 'Zikao External API',
+        version: '1.0',
+        auth: 'Bearer token (API key)',
+        endpoints: [
+            { method: 'POST', path: '/api/v1/chat', description: 'Discuter avec Zikao', body: '{ message, userId? }' },
+            { method: 'GET', path: '/api/v1/music/search', description: 'Rechercher musique', query: '?q=...&type=track|artist' },
+            { method: 'GET', path: '/api/v1/status', description: 'État actuel de Zikao' }
+        ]
+    });
+});
+
 // ==================== API ROUTES ====================
 
 // Health check
@@ -2094,6 +2404,7 @@ function wantsToListen(message) {
         /\b(joue|jouer|passe|passer)\b/i,
         /\b(fais.*(écouter|ecouter|jouer|péter|peter|tourner|claquer))\b/i,
         /\b(propose|recommande|suggère|suggere)\b/i,
+        /\b(cherche|trouve|lance|donne)\b.*\b(du|de la|un|une|des|le|la)\b/i,  // "cherche du zouk"
         SLANG_PATTERNS.play,  // All slang play terms
         SLANG_PATTERNS.have   // All slang "do you have" terms
     ];
@@ -2200,8 +2511,45 @@ function findRequestedRadio(message) {
     return 'mouv';
 }
 
+// Music genres with associated artists/search terms
+const MUSIC_GENRES = {
+    'zouk': { artists: ['Kassav', 'Zouk Machine', 'Francky Vincent', 'Jocelyne Beroard', 'Patrick Saint-Eloi', 'Tanya Saint-Val', 'Jean-Michel Rotin'], search: 'zouk' },
+    'kompa': { artists: ['Tabou Combo', 'Carimi', 'T-Vice', 'Harmonik', 'Klass'], search: 'kompa' },
+    'reggae': { artists: ['Bob Marley', 'Peter Tosh', 'Alpha Blondy', 'Tiken Jah Fakoly', 'Damian Marley'], search: 'reggae' },
+    'dancehall': { artists: ['Sean Paul', 'Shaggy', 'Admiral T', 'Kalash'], search: 'dancehall' },
+    'afrobeat': { artists: ['Burna Boy', 'Wizkid', 'Davido', 'Tiwa Savage', 'Fally Ipupa'], search: 'afrobeat' },
+    'rap': { artists: ['Ninho', 'Damso', 'Booba', 'Nekfeu', 'PNL', 'Jul'], search: 'rap francais' },
+    'rnb': { artists: ['The Weeknd', 'Beyonce', 'Rihanna', 'Chris Brown', 'Usher'], search: 'rnb' },
+    'soul': { artists: ['Aretha Franklin', 'Marvin Gaye', 'Stevie Wonder', 'Alicia Keys'], search: 'soul' },
+    'jazz': { artists: ['Miles Davis', 'John Coltrane', 'Nina Simone', 'Herbie Hancock'], search: 'jazz' },
+    'rock': { artists: ['Queen', 'Led Zeppelin', 'AC/DC', 'Guns N Roses'], search: 'rock' },
+    'pop': { artists: ['Taylor Swift', 'Ed Sheeran', 'Dua Lipa', 'Bruno Mars'], search: 'pop' },
+    'electro': { artists: ['Daft Punk', 'David Guetta', 'Martin Garrix', 'Avicii'], search: 'electro' },
+    'kizomba': { artists: ['Nelson Freitas', 'Kaysha', 'C4 Pedro', 'Badoxa'], search: 'kizomba' },
+    'salsa': { artists: ['Marc Anthony', 'Celia Cruz', 'Hector Lavoe', 'Willie Colon'], search: 'salsa' },
+    'soca': { artists: ['Machel Montano', 'Bunji Garlin', 'Destra Garcia'], search: 'soca' }
+};
+
+// Detect if user is asking for a genre
+function extractGenreFromMessage(message) {
+    const msg = message.toLowerCase();
+    for (const [genre, data] of Object.entries(MUSIC_GENRES)) {
+        if (msg.includes(genre)) {
+            return { genre, ...data };
+        }
+    }
+    return null;
+}
+
 // Extract artist name from message
 function extractArtistFromMessage(message) {
+    // First check if it's a genre request
+    const genreMatch = extractGenreFromMessage(message);
+    if (genreMatch) {
+        // Return null so the genre handler takes over
+        return null;
+    }
+
     // Build dynamic pattern from slang dictionaries
     const playSlang = [...SLANG_PLAY_MUSIC.fr, ...SLANG_PLAY_MUSIC.us]
         .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
@@ -2233,6 +2581,8 @@ function extractArtistFromMessage(message) {
             // Clean up the extracted name
             let artist = match[1] || match[0];
             artist = artist.replace(/[?.!,;:]$/g, '').trim();
+            // Remove leading noise like "le son avec", "le sons avec", "la musique de"
+            artist = artist.replace(/^(le\s+sons?\s+(?:de|du|avec|sur)\s+|les\s+sons?\s+(?:de|du|avec|sur)\s+|la\s+(?:musique|zik|chanson)\s+(?:de|du|avec|sur)\s+)/i, '').trim();
             // Remove filler words and slang noise
             artist = artist.replace(/\b(stp|svp|please|maintenant|now|un peu de|quelque chose de|du son de|la zik de|poto|fréro|frere|wesh|yo|bro|man|dude|chef|boss|gars)\b/gi, '').trim();
             // Remove trailing prepositions
@@ -2318,11 +2668,14 @@ app.post('/chat', async (req, res) => {
             }
         }
 
-        // Check if user wants to listen - search for specific artist or trending
+        // Check if user wants to listen - search for specific artist, genre, or trending
         let music = null;
         const mem = getUserMemory(uid);
 
-        // Always try to extract artist from any message to remember it
+        // Check for genre request first (zouk, reggae, rap, etc.)
+        const genreRequest = extractGenreFromMessage(message);
+
+        // Then try to extract artist from any message to remember it
         const mentionedArtist = extractArtistFromMessage(message);
         if (mentionedArtist) {
             mem.lastMentionedArtist = mentionedArtist;
@@ -2330,12 +2683,30 @@ app.post('/chat', async (req, res) => {
         }
 
         if (wantsToListen(message) && !video && !radio) {
-            // First try to extract artist from message, or use last mentioned
-            const requestedArtist = mentionedArtist || mem.lastMentionedArtist;
+            // Handle genre request (e.g., "cherche du zouk")
+            if (genreRequest) {
+                console.log(`[Zikao] Genre request: ${genreRequest.genre}`);
+                // Pick a random artist from this genre
+                const randomArtist = genreRequest.artists[Math.floor(Math.random() * genreRequest.artists.length)];
+                console.log(`[Zikao] Searching ${genreRequest.genre} artist: ${randomArtist}`);
 
-            if (requestedArtist) {
-                // User asked for specific artist - search by artist first
-                console.log(`[Zikao] Searching for artist: ${requestedArtist}`);
+                const searchResult = await searchMusic(randomArtist + ' ' + genreRequest.search, 'track');
+                if (searchResult.found && searchResult.results.length > 0) {
+                    // Pick a random track from results for variety
+                    const randomIndex = Math.floor(Math.random() * Math.min(5, searchResult.results.length));
+                    music = searchResult.results[randomIndex];
+                    console.log(`[Zikao] Found ${genreRequest.genre} track: ${music.title} - ${music.artist}`);
+                }
+            }
+
+            // If no genre match, try artist
+            if (!music) {
+                // First try to extract artist from message, or use last mentioned
+                const requestedArtist = mentionedArtist || mem.lastMentionedArtist;
+
+                if (requestedArtist) {
+                    // User asked for specific artist - search by artist first
+                    console.log(`[Zikao] Searching for artist: ${requestedArtist}`);
 
                 // Search for artist
                 const artistSearch = await searchMusic(requestedArtist, 'artist');
@@ -2367,6 +2738,7 @@ app.post('/chat', async (req, res) => {
                     if (searchResult.found && searchResult.results.length > 0) {
                         music = searchResult.results[0];
                     }
+                }
                 }
             }
 

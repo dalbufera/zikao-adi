@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zikao - Administration API</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #0d0d2b 100%);
+            color: #e0e0ff;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(20, 20, 50, 0.9);
+            border-bottom: 1px solid rgba(130, 100, 255, 0.3);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .header-left h1 { font-size: 20px; font-weight: 600; }
+        .header-left h1 span { color: #8264ff; }
+        .header-left .badge {
+            background: rgba(130, 100, 255, 0.2);
+            border: 1px solid rgba(130, 100, 255, 0.4);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #a98aff;
+        }
+        .admin-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #a0a0c0;
+        }
+        .admin-user .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8264ff, #5a3fd4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Main */
+        .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: rgba(30, 30, 60, 0.8);
+            border: 1px solid rgba(130, 100, 255, 0.15);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .stat-card .label { font-size: 13px; color: #8080a0; margin-bottom: 4px; }
+        .stat-card .value { font-size: 28px; font-weight: 700; color: #fff; }
+        .stat-card .value.active { color: #4ade80; }
+        .stat-card .value.revoked { color: #f87171; }
+        .stat-card .value.requests { color: #8264ff; }
+
+        /* Section */
+        .section {
+            background: rgba(30, 30, 60, 0.6);
+            border: 1px solid rgba(130, 100, 255, 0.15);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(10px);
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .section-header h2 { font-size: 18px; font-weight: 600; }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #8264ff, #5a3fd4);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(130, 100, 255, 0.4); }
+        .btn-danger { background: rgba(248, 113, 113, 0.2); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); }
+        .btn-danger:hover { background: rgba(248, 113, 113, 0.3); }
+        .btn-success { background: rgba(74, 222, 128, 0.2); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
+        .btn-success:hover { background: rgba(74, 222, 128, 0.3); }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-ghost { background: transparent; color: #a0a0c0; border: 1px solid rgba(160, 160, 192, 0.3); }
+        .btn-ghost:hover { background: rgba(160, 160, 192, 0.1); }
+
+        /* Table */
+        .keys-table { width: 100%; border-collapse: collapse; }
+        .keys-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8080a0;
+            border-bottom: 1px solid rgba(130, 100, 255, 0.15);
+        }
+        .keys-table td {
+            padding: 14px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .keys-table tr:hover td { background: rgba(130, 100, 255, 0.05); }
+        .key-name { font-weight: 500; color: #fff; }
+        .key-code {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            color: #a98aff;
+            background: rgba(130, 100, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-active { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+        .status-revoked { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+        .actions { display: flex; gap: 8px; }
+        .empty-state { text-align: center; padding: 40px; color: #8080a0; }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1e1e3e;
+            border: 1px solid rgba(130, 100, 255, 0.3);
+            border-radius: 16px;
+            padding: 28px;
+            width: 480px;
+            max-width: 90vw;
+        }
+        .modal h3 { font-size: 18px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #a0a0c0;
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(130, 100, 255, 0.3);
+            background: rgba(10, 10, 30, 0.6);
+            color: #e0e0ff;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #8264ff;
+            box-shadow: 0 0 0 3px rgba(130, 100, 255, 0.15);
+        }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+
+        /* Permissions checkboxes */
+        .permissions-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+        .perm-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: rgba(10, 10, 30, 0.4);
+            border: 1px solid rgba(130, 100, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .perm-item:has(input:checked) {
+            background: rgba(130, 100, 255, 0.15);
+            border-color: #8264ff;
+        }
+        .perm-item input { accent-color: #8264ff; }
+
+        /* New key display */
+        .new-key-display {
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 16px;
+            text-align: center;
+        }
+        .new-key-display .warning {
+            font-size: 13px;
+            color: #fbbf24;
+            margin-bottom: 12px;
+        }
+        .new-key-display .key-value {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 15px;
+            color: #4ade80;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            word-break: break-all;
+            margin-bottom: 12px;
+        }
+
+        /* API Docs */
+        .endpoint {
+            background: rgba(10, 10, 30, 0.4);
+            border: 1px solid rgba(130, 100, 255, 0.1);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .endpoint-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .method {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            font-family: monospace;
+        }
+        .method-post { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+        .method-get { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .endpoint-path { font-family: monospace; color: #fff; font-size: 14px; }
+        .endpoint-desc { font-size: 13px; color: #a0a0c0; }
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 14px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            color: #a98aff;
+            overflow-x: auto;
+            margin-top: 8px;
+            white-space: pre;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e1e3e;
+            border: 1px solid rgba(130, 100, 255, 0.3);
+            border-radius: 10px;
+            padding: 14px 20px;
+            font-size: 14px;
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-color: rgba(74, 222, 128, 0.5); }
+        .toast.error { border-color: rgba(248, 113, 113, 0.5); }
+
+        /* Back link */
+        .back-link {
+            color: #8264ff;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 24px;
+        }
+        .back-link:hover { color: #a98aff; }
+
+        /* Hide header and back link when in iframe (portal) */
+        body.in-iframe .header { display: none; }
+        body.in-iframe .back-link { display: none; }
+        body.in-iframe .container { padding-top: 16px; }
+
+        @media (max-width: 768px) {
+            .container { padding: 16px; }
+            .keys-table { font-size: 12px; }
+            .keys-table th, .keys-table td { padding: 10px 8px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1><span>Zikao</span> Admin</h1>
+            <span class="badge">API Management</span>
+        </div>
+        <div class="admin-user">
+            <div class="avatar" id="adminAvatar"></div>
+            <span id="adminName">-</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <a href="javascript:void(0)" class="back-link" id="backLink">&larr; Retour</a>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">Cles actives</div>
+                <div class="value active" id="statActive">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Cles revoquees</div>
+                <div class="value revoked" id="statRevoked">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Total requetes</div>
+                <div class="value requests" id="statRequests">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Cles totales</div>
+                <div class="value" id="statTotal">-</div>
+            </div>
+        </div>
+
+        <!-- API Keys -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Cles API</h2>
+                <button class="btn btn-primary" onclick="showCreateModal()">+ Nouvelle cle</button>
+            </div>
+            <div id="keysContainer">
+                <div class="empty-state">Chargement...</div>
+            </div>
+        </div>
+
+        <!-- API Documentation -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Documentation API</h2>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method method-post">POST</span>
+                    <span class="endpoint-path">/api/v1/chat</span>
+                </div>
+                <div class="endpoint-desc">Discuter avec Zikao. Retourne le texte, l'emotion et la musique si demandee.</div>
+                <div class="code-block">curl -X POST https://VOTRE-SERVEUR:3100/api/v1/chat \
+  -H "Authorization: Bearer zk_votre_cle" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "joue du Tupac", "userId": "app1"}'</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method method-get">GET</span>
+                    <span class="endpoint-path">/api/v1/music/search?q=...&type=track|artist</span>
+                </div>
+                <div class="endpoint-desc">Rechercher de la musique (artistes ou morceaux via Deezer).</div>
+                <div class="code-block">curl https://VOTRE-SERVEUR:3100/api/v1/music/search?q=tupac \
+  -H "Authorization: Bearer zk_votre_cle"</div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header">
+                    <span class="method method-get">GET</span>
+                    <span class="endpoint-path">/api/v1/status</span>
+                </div>
+                <div class="endpoint-desc">Etat actuel de Zikao (humeur, activite, disponibilite).</div>
+                <div class="code-block">curl https://VOTRE-SERVEUR:3100/api/v1/status \
+  -H "Authorization: Bearer zk_votre_cle"</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Modal -->
+    <div class="modal-overlay" id="createModal">
+        <div class="modal">
+            <h3>Nouvelle cle API</h3>
+            <div class="form-group">
+                <label>Nom *</label>
+                <input type="text" id="keyName" placeholder="Ex: App Apple TV, Bot Discord...">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="keyDesc" placeholder="A quoi sert cette cle..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Permissions</label>
+                <div class="permissions-grid">
+                    <label class="perm-item"><input type="checkbox" value="chat" checked> Chat</label>
+                    <label class="perm-item"><input type="checkbox" value="music" checked> Musique</label>
+                    <label class="perm-item"><input type="checkbox" value="status" checked> Statut</label>
+                    <label class="perm-item"><input type="checkbox" value="voice"> Voix TTS</label>
+                    <label class="perm-item"><input type="checkbox" value="video"> Video</label>
+                </div>
+            </div>
+            <div id="newKeyResult"></div>
+            <div class="form-actions">
+                <button class="btn btn-ghost" onclick="closeCreateModal()">Annuler</button>
+                <button class="btn btn-primary" id="createBtn" onclick="createKey()">Creer la cle</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Auto-detect context:
+        // - Direct access (port 3100/8898): use /admin/
+        // - Portal iframe (port 8895): use /zikao-admin-api/ on same port
+        const port = window.location.port;
+        const isPortal = port === '8895' || window.location.pathname.includes('zikao-admin');
+        const API_BASE = isPortal ? '/zikao-admin-api' : '/admin';
+        const fetchAdmin = (path, opts) => fetch(`${API_BASE}${path}`, opts);
+
+        // Load admin info
+        async function loadAdminInfo() {
+            try {
+                const res = await fetchAdmin(`/me`);
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        document.body.innerHTML = '<div style="display:flex;height:100vh;align-items:center;justify-content:center;color:#f87171;font-size:18px;">Authentification requise. Connectez-vous via Authentik.</div>';
+                        return;
+                    }
+                    if (res.status === 403) {
+                        const data = await res.json();
+                        document.body.innerHTML = `<div style="display:flex;height:100vh;align-items:center;justify-content:center;color:#f87171;font-size:18px;">${data.error}</div>`;
+                        return;
+                    }
+                }
+                const user = await res.json();
+                document.getElementById('adminName').textContent = user.name || user.username;
+                document.getElementById('adminAvatar').textContent = (user.name || user.username).charAt(0).toUpperCase();
+            } catch (e) {
+                console.error('Admin info error:', e);
+            }
+        }
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const res = await fetchAdmin(`/stats`);
+                const data = await res.json();
+                document.getElementById('statActive').textContent = data.activeKeys;
+                document.getElementById('statRevoked').textContent = data.revokedKeys;
+                document.getElementById('statRequests').textContent = data.totalRequests.toLocaleString();
+                document.getElementById('statTotal').textContent = data.totalKeys;
+            } catch (e) {
+                console.error('Stats error:', e);
+            }
+        }
+
+        // Load keys
+        async function loadKeys() {
+            try {
+                const res = await fetchAdmin(`/api-keys`);
+                const keys = await res.json();
+                const container = document.getElementById('keysContainer');
+
+                if (keys.length === 0) {
+                    container.innerHTML = '<div class="empty-state">Aucune cle API. Creez-en une pour commencer.</div>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="keys-table">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Cle</th>
+                                <th>Statut</th>
+                                <th>Requetes</th>
+                                <th>Derniere utilisation</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${keys.map(k => `
+                                <tr>
+                                    <td>
+                                        <div class="key-name">${esc(k.name)}</div>
+                                        <div style="font-size:12px;color:#8080a0">${esc(k.description || '')}</div>
+                                    </td>
+                                    <td><code class="key-code">${esc(k.key)}</code></td>
+                                    <td>
+                                        <span class="status-badge ${k.active ? 'status-active' : 'status-revoked'}">
+                                            ${k.active ? 'Active' : 'Revoquee'}
+                                        </span>
+                                    </td>
+                                    <td>${(k.requests || 0).toLocaleString()}</td>
+                                    <td style="font-size:13px;color:#a0a0c0">${k.lastUsed ? timeAgo(k.lastUsed) : 'Jamais'}</td>
+                                    <td class="actions">
+                                        ${k.active
+                                            ? `<button class="btn btn-danger btn-sm" onclick="revokeKey('${k.id}', '${esc(k.name)}')">Revoquer</button>`
+                                            : `<button class="btn btn-success btn-sm" onclick="reactivateKey('${k.id}', '${esc(k.name)}')">Reactiver</button>`
+                                        }
+                                        <button class="btn btn-ghost btn-sm" onclick="deleteKey('${k.id}', '${esc(k.name)}')">Supprimer</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                console.error('Keys error:', e);
+            }
+        }
+
+        // Create key
+        async function createKey() {
+            const name = document.getElementById('keyName').value.trim();
+            const description = document.getElementById('keyDesc').value.trim();
+            const permissions = [...document.querySelectorAll('.permissions-grid input:checked')].map(c => c.value);
+
+            if (!name) { toast('Nom requis', 'error'); return; }
+
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+            btn.textContent = 'Creation...';
+
+            try {
+                const res = await fetchAdmin(`/api-keys`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, permissions })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    document.getElementById('newKeyResult').innerHTML = `
+                        <div class="new-key-display">
+                            <div class="warning">Copiez cette cle maintenant. Elle ne sera plus visible en entier.</div>
+                            <div class="key-value" id="newKeyValue">${data.key}</div>
+                            <button class="btn btn-primary btn-sm" onclick="copyKey()">Copier la cle</button>
+                        </div>
+                    `;
+                    btn.style.display = 'none';
+                    loadKeys();
+                    loadStats();
+                } else {
+                    toast(data.error, 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Creer la cle';
+                }
+            } catch (e) {
+                toast('Erreur de creation', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Creer la cle';
+            }
+        }
+
+        // Revoke key
+        async function revokeKey(id, name) {
+            if (!confirm(`Revoquer la cle "${name}" ?`)) return;
+            try {
+                await fetchAdmin(`/api-keys/${id}`, { method: 'DELETE' });
+                toast(`Cle "${name}" revoquee`, 'success');
+                loadKeys();
+                loadStats();
+            } catch (e) { toast('Erreur', 'error'); }
+        }
+
+        // Reactivate key
+        async function reactivateKey(id, name) {
+            try {
+                await fetchAdmin(`/api-keys/${id}`, { method: 'PATCH' });
+                toast(`Cle "${name}" reactivee`, 'success');
+                loadKeys();
+                loadStats();
+            } catch (e) { toast('Erreur', 'error'); }
+        }
+
+        // Delete key permanently
+        async function deleteKey(id, name) {
+            if (!confirm(`Supprimer definitivement la cle "${name}" ? Cette action est irreversible.`)) return;
+            try {
+                await fetchAdmin(`/api-keys/${id}/permanent`, { method: 'DELETE' });
+                toast(`Cle "${name}" supprimee`, 'success');
+                loadKeys();
+                loadStats();
+            } catch (e) { toast('Erreur', 'error'); }
+        }
+
+        // Copy key
+        function copyKey() {
+            const key = document.getElementById('newKeyValue')?.textContent;
+            if (key) {
+                navigator.clipboard.writeText(key);
+                toast('Cle copiee !', 'success');
+            }
+        }
+
+        // Modal
+        function showCreateModal() {
+            document.getElementById('keyName').value = '';
+            document.getElementById('keyDesc').value = '';
+            document.getElementById('newKeyResult').innerHTML = '';
+            const btn = document.getElementById('createBtn');
+            btn.style.display = '';
+            btn.disabled = false;
+            btn.textContent = 'Creer la cle';
+            document.querySelectorAll('.permissions-grid input').forEach(c => c.checked = ['chat','music','status'].includes(c.value));
+            document.getElementById('createModal').classList.add('active');
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('active');
+        }
+
+        // Helpers
+        function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+        function timeAgo(date) {
+            const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+            if (s < 60) return 'A l\'instant';
+            if (s < 3600) return `Il y a ${Math.floor(s/60)}min`;
+            if (s < 86400) return `Il y a ${Math.floor(s/3600)}h`;
+            return `Il y a ${Math.floor(s/86400)}j`;
+        }
+
+        function toast(msg, type = 'success') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `toast ${type} show`;
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        // Close modal on overlay click
+        document.getElementById('createModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeCreateModal();
+        });
+
+        // Detect iframe
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+
+        // Init
+        document.getElementById('backLink').href = isPortal ? '/' : '/';
+        loadAdminInfo();
+        loadKeys();
+        loadStats();
+    </script>
+</body>
+</html>

@@ -18,7 +18,11 @@ services:
       - .env
     networks:
       - zikao-network
+      - intranet_internal
 
 networks:
   zikao-network:
     driver: bridge
+  intranet_internal:
+    external: true
+    name: intranet_intranet_internal
