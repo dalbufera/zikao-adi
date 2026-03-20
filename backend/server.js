@@ -70,7 +70,7 @@ const USE_OLLAMA = process.env.USE_OLLAMA === 'true'; // désactivé par défaut
 
 // OpenRouter
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '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';
+const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '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';
 const PRIMARY_MODEL = 'openrouter/free';
 // openrouter/free auto-route vers un modèle dispo, retry 3x en cas de rate-limit
 const FALLBACK_MODELS = [
@@ -108,9 +108,32 @@ const APIPASS_URL = 'https://api.apipass.dev/api/v1';
 const APIPASS_KEY = process.env.APIPASS_KEY || '';
 
 // Music Recognition (Shazam-like)
-// AudD API - Get your key at https://audd.io/
+// AudD API - fetched from ADK-Center or .env fallback
 const AUDD_API = 'https://api.audd.io';
-const AUDD_KEY = process.env.AUDD_KEY || '';
+let AUDD_KEY = process.env.AUDD_KEY || '';
+
+// Fetch service keys from ADK-Center (intranet-ai-files)
+const ADK_CENTER_URL = process.env.ADK_CENTER_URL || 'http://intranet-ai-files:8080';
+async function fetchServiceKeys() {
+    try {
+        const services = ['audd'];
+        for (const sid of services) {
+            const resp = await fetch(`${ADK_CENTER_URL}/service-keys/${sid}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                if (data.key && data.active !== false) {
+                    if (sid === 'audd') {
+                        AUDD_KEY = data.key;
+                        console.log(`[Zikao] ADK-Center: cle ${data.name} chargee`);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.log(`[Zikao] ADK-Center indisponible, utilisation des cles .env`);
+    }
+}
+fetchServiceKeys();
 
 // ACRCloud API - Get your keys at https://www.acrcloud.com/
 // More professional, better accuracy
@@ -2920,6 +2943,61 @@ app.get('/search', async (req, res) => {
 
     const results = await searchWeb(q);
     res.json(results);
+});
+
+// ==================== TTS API (TEXT-TO-SPEECH) ====================
+
+app.post('/tts', async (req, res) => {
+    const { text, voice, speed } = req.body;
+    if (!text) return res.status(400).json({ error: 'Text required' });
+    if (!OPENAI_KEY) return res.status(503).json({ error: 'TTS not configured' });
+
+    try {
+        const ttsVoice = voice || 'nova'; // nova = feminine friendly voice (default for Patricia)
+        const ttsSpeed = speed || 1.0;
+
+        const resp = await fetch(OPENAI_TTS_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'tts-1',
+                voice: ttsVoice,
+                input: text.substring(0, 4096),
+                speed: ttsSpeed,
+                response_format: 'mp3'
+            })
+        });
+
+        if (!resp.ok) {
+            const error = await resp.text();
+            console.log('[Zikao] TTS API error:', resp.status, error);
+            return res.status(502).json({ error: 'TTS generation failed' });
+        }
+
+        const audioBuffer = await resp.arrayBuffer();
+        res.set({
+            'Content-Type': 'audio/mpeg',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-cache'
+        });
+        res.send(Buffer.from(audioBuffer));
+    } catch (e) {
+        console.log('[Zikao] TTS error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// CORS preflight for TTS
+app.options('/tts', (req, res) => {
+    res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    res.sendStatus(204);
 });
 
 // ==================== MUSIC RECOGNITION API (SHAZAM-LIKE) ====================
